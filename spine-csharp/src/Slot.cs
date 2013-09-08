@@ -34,6 +34,10 @@ namespace Spine {
 		public float G { get; set; }
 		public float B { get; set; }
 		public float A { get; set; }
+		public float TintR { get; set; }
+		public float TintG { get; set; }
+		public float TintB { get; set; }
+		public float TintA { get; set; }
 
 		/** May be null. */
 		private Attachment attachment;
@@ -72,6 +76,10 @@ namespace Spine {
 			G = Data.G;
 			B = Data.B;
 			A = Data.A;
+			TintR = Data.TintR;
+			TintG = Data.TintG;
+			TintB = Data.TintB;
+			TintA = Data.TintA;
 			Attachment = Data.AttachmentName == null ? null : Skeleton.GetAttachment(slotIndex, Data.AttachmentName);
 		}
 

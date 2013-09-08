@@ -33,6 +33,10 @@ namespace Spine {
 		public float G { get; set; }
 		public float B { get; set; }
 		public float A { get; set; }
+		public float TintR { get; set; }
+		public float TintG { get; set; }
+		public float TintB { get; set; }
+		public float TintA { get; set; }
 		/** @param attachmentName May be null. */
 		public String AttachmentName { get; set; }
 
@@ -45,6 +49,10 @@ namespace Spine {
 			G = 1;
 			B = 1;
 			A = 1;
+			TintR = 1;
+			TintG = 1;
+			TintB = 1;
+			TintA = 1;
 		}
 
 		override public String ToString () {
