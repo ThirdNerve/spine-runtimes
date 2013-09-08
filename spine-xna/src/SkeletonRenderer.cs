@@ -81,10 +81,10 @@ namespace Spine {
 					AtlasRegion region = (AtlasRegion)regionAttachment.RendererObject;
 					item.Texture = (Texture2D)region.page.rendererObject;
 
-					byte r = (byte)(skeleton.R * slot.R * 255);
-					byte g = (byte)(skeleton.G * slot.G * 255);
-					byte b = (byte)(skeleton.B * slot.B * 255);
-					byte a = (byte)(skeleton.A * slot.A * 255);
+					byte r = (byte)(skeleton.R * slot.R * slot.TintR * 255);
+					byte g = (byte)(skeleton.G * slot.G * slot.TintG * 255);
+					byte b = (byte)(skeleton.B * slot.B * slot.TintB * 255);
+					byte a = (byte)(skeleton.A * slot.A * slot.TintA * 255);
 					item.vertexTL.Color.R = r;
 					item.vertexTL.Color.G = g;
 					item.vertexTL.Color.B = b;
