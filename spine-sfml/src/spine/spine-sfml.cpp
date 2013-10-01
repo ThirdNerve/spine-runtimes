@@ -1,15 +1,23 @@
-/*******************************************************************************
+/******************************************************************************
+ * Spine Runtime Software License - Version 1.0
+ * 
  * Copyright (c) 2013, Esoteric Software
  * All rights reserved.
  * 
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
+ * Redistribution and use in source and binary forms in whole or in part, with
+ * or without modification, are permitted provided that the following conditions
+ * are met:
  * 
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
+ * 1. A Spine Single User License or Spine Professional License must be
+ *    purchased from Esoteric Software and the license must remain valid:
+ *    http://esotericsoftware.com/
+ * 2. Redistributions of source code must retain this license, which is the
+ *    above copyright notice, this declaration of conditions and the following
+ *    disclaimer.
+ * 3. Redistributions in binary form must reproduce this license, which is the
+ *    above copyright notice, this declaration of conditions and the following
+ *    disclaimer, in the documentation and/or other materials provided with the
+ *    distribution.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -21,7 +29,7 @@
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- ******************************************************************************/
+ *****************************************************************************/
 
 #include <spine/spine-sfml.h>
 #include <spine/extension.h>
@@ -36,6 +44,7 @@ using namespace sf;
 void _AtlasPage_createTexture (AtlasPage* self, const char* path) {
 	Texture* texture = new Texture();
 	if (!texture->loadFromFile(path)) return;
+	texture->setSmooth(true);
 	self->rendererObject = texture;
 	Vector2u size = texture->getSize();
 	self->width = size.x;
@@ -78,13 +87,23 @@ void SkeletonDrawable::update (float deltaTime) {
 
 void SkeletonDrawable::draw (RenderTarget& target, RenderStates states) const {
 	vertexArray->clear();
-	float vertexPositions[8];
+	states.blendMode = BlendAlpha;
+
+	float worldVertices[8];
 	for (int i = 0; i < skeleton->slotCount; ++i) {
-		Slot* slot = skeleton->slots[i];
+		Slot* slot = skeleton->drawOrder[i];
 		Attachment* attachment = slot->attachment;
 		if (!attachment || attachment->type != ATTACHMENT_REGION) continue;
 		RegionAttachment* regionAttachment = (RegionAttachment*)attachment;
-		RegionAttachment_computeVertices(regionAttachment, slot->skeleton->x, slot->skeleton->y, slot->bone, vertexPositions);
+
+		BlendMode blend = slot->data->additiveBlending ? BlendAdd : BlendAlpha;
+		if (states.blendMode != blend) {
+			target.draw(*vertexArray, states);
+			vertexArray->clear();
+			states.blendMode = blend;
+		}
+
+		RegionAttachment_computeWorldVertices(regionAttachment, slot->skeleton->x, slot->skeleton->y, slot->bone, worldVertices);
 
 		Uint8 r = skeleton->r * slot->r * 255;
 		Uint8 g = skeleton->g * slot->g * 255;
@@ -109,14 +128,14 @@ void SkeletonDrawable::draw (RenderTarget& target, RenderStates states) const {
 		vertices[3].color.b = b;
 		vertices[3].color.a = a;
 
-		vertices[0].position.x = vertexPositions[VERTEX_X1];
-		vertices[0].position.y = vertexPositions[VERTEX_Y1];
-		vertices[1].position.x = vertexPositions[VERTEX_X2];
-		vertices[1].position.y = vertexPositions[VERTEX_Y2];
-		vertices[2].position.x = vertexPositions[VERTEX_X3];
-		vertices[2].position.y = vertexPositions[VERTEX_Y3];
-		vertices[3].position.x = vertexPositions[VERTEX_X4];
-		vertices[3].position.y = vertexPositions[VERTEX_Y4];
+		vertices[0].position.x = worldVertices[VERTEX_X1];
+		vertices[0].position.y = worldVertices[VERTEX_Y1];
+		vertices[1].position.x = worldVertices[VERTEX_X2];
+		vertices[1].position.y = worldVertices[VERTEX_Y2];
+		vertices[2].position.x = worldVertices[VERTEX_X3];
+		vertices[2].position.y = worldVertices[VERTEX_Y3];
+		vertices[3].position.x = worldVertices[VERTEX_X4];
+		vertices[3].position.y = worldVertices[VERTEX_Y4];
 
 		// SMFL doesn't handle batching for us, so we'll just force a single texture per skeleton.
 		states.texture = (Texture*)((AtlasRegion*)regionAttachment->rendererObject)->page->rendererObject;

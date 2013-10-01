@@ -1,18 +1,53 @@
+/******************************************************************************
+ * Spine Runtime Software License - Version 1.0
+ * 
+ * Copyright (c) 2013, Esoteric Software
+ * All rights reserved.
+ * 
+ * Redistribution and use in source and binary forms in whole or in part, with
+ * or without modification, are permitted provided that the following conditions
+ * are met:
+ * 
+ * 1. A Spine Single User License or Spine Professional License must be
+ *    purchased from Esoteric Software and the license must remain valid:
+ *    http://esotericsoftware.com/
+ * 2. Redistributions of source code must retain this license, which is the
+ *    above copyright notice, this declaration of conditions and the following
+ *    disclaimer.
+ * 3. Redistributions in binary form must reproduce this license, which is the
+ *    above copyright notice, this declaration of conditions and the following
+ *    disclaimer, in the documentation and/or other materials provided with the
+ *    distribution.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *****************************************************************************/
+
 package spine.starling {
 import flash.geom.Matrix;
 import flash.geom.Point;
 import flash.geom.Rectangle;
 
-import spine.attachments.RegionAttachment;
-
-import starling.animation.IAnimatable;
-import starling.core.RenderSupport;
-import starling.display.DisplayObject;
-import starling.utils.MatrixUtil;
 import spine.Bone;
 import spine.Skeleton;
 import spine.SkeletonData;
 import spine.Slot;
+import spine.attachments.RegionAttachment;
+
+import starling.animation.IAnimatable;
+import starling.core.RenderSupport;
+import starling.display.BlendMode;
+import starling.display.DisplayObject;
+import starling.utils.Color;
+import starling.utils.MatrixUtil;
 
 public class SkeletonSprite extends DisplayObject implements IAnimatable {
 	static private var tempPoint:Point = new Point();
@@ -42,44 +77,30 @@ public class SkeletonSprite extends DisplayObject implements IAnimatable {
 			var regionAttachment:RegionAttachment = slot.attachment as RegionAttachment;
 			if (regionAttachment != null) {
 				var vertices:Vector.<Number> = this.vertices;
-				regionAttachment.computeVertices(skeleton.x, skeleton.y, slot.bone, vertices);
-				var r:Number = skeleton.r * slot.r;
-				var g:Number = skeleton.g * slot.g;
-				var b:Number = skeleton.b * slot.b;
+				regionAttachment.computeWorldVertices(skeleton.x, skeleton.y, slot.bone, vertices);
+				var r:Number = skeleton.r * slot.r * 255;
+				var g:Number = skeleton.g * slot.g * 255;
+				var b:Number = skeleton.b * slot.b * 255;
 				var a:Number = slot.a;
+				var rgb:uint = Color.rgb(r,g,b);
 
 				var image:SkeletonImage = regionAttachment.rendererObject as SkeletonImage;
 				var vertexData:Vector.<Number> = image.vertexData.rawData;
-		
-				vertexData[0] = vertices[2];
-				vertexData[1] = vertices[3];
-				vertexData[2] = r;
-				vertexData[3] = g;
-				vertexData[4] = b;
-				vertexData[5] = a;
-
-				vertexData[8] = vertices[4];
-				vertexData[9] = vertices[5];
-				vertexData[10] = r;
-				vertexData[11] = g;
-				vertexData[12] = b;
-				vertexData[13] = a;
-
-				vertexData[16] = vertices[0];
-				vertexData[17] = vertices[1];
-				vertexData[18] = r;
-				vertexData[19] = g;
-				vertexData[20] = b;
-				vertexData[21] = a;
-
-				vertexData[24] = vertices[6];
-				vertexData[25] = vertices[7];
-				vertexData[26] = r;
-				vertexData[27] = g;
-				vertexData[28] = b;
-				vertexData[29] = a;
+						
+				image.vertexData.setPosition(0, vertices[2], vertices[3]);				
+				image.vertexData.setColorAndAlpha(0, rgb, a);
+				
+				image.vertexData.setPosition(1, vertices[4], vertices[5]);
+				image.vertexData.setColorAndAlpha(1, rgb, a);
+				
+				image.vertexData.setPosition(2, vertices[0], vertices[1]);
+				image.vertexData.setColorAndAlpha(2, rgb, a);
+				
+				image.vertexData.setPosition(3, vertices[6], vertices[7]);
+				image.vertexData.setColorAndAlpha(3, rgb, a);
 
 				image.updateVertices();
+				support.blendMode = slot.data.additiveBlending ? BlendMode.ADD : BlendMode.NORMAL;
 				support.batchQuad(image, alpha, image.texture);
 			}
 		}
@@ -100,7 +121,7 @@ public class SkeletonSprite extends DisplayObject implements IAnimatable {
 				continue;
 
 			var vertices:Vector.<Number> = this.vertices;
-			regionAttachment.computeVertices(skeleton.x, skeleton.y, slot.bone, vertices);
+			regionAttachment.computeWorldVertices(skeleton.x, skeleton.y, slot.bone, vertices);
 
 			value = vertices[0];
 			if (value < minX)
@@ -194,4 +215,3 @@ public class SkeletonSprite extends DisplayObject implements IAnimatable {
 }
 
 }
-

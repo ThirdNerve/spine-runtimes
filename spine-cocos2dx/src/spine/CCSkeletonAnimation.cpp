@@ -1,15 +1,23 @@
-/*******************************************************************************
+/******************************************************************************
+ * Spine Runtime Software License - Version 1.0
+ * 
  * Copyright (c) 2013, Esoteric Software
  * All rights reserved.
  * 
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
+ * Redistribution and use in source and binary forms in whole or in part, with
+ * or without modification, are permitted provided that the following conditions
+ * are met:
  * 
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
+ * 1. A Spine Single User License or Spine Professional License must be
+ *    purchased from Esoteric Software and the license must remain valid:
+ *    http://esotericsoftware.com/
+ * 2. Redistributions of source code must retain this license, which is the
+ *    above copyright notice, this declaration of conditions and the following
+ *    disclaimer.
+ * 3. Redistributions in binary form must reproduce this license, which is the
+ *    above copyright notice, this declaration of conditions and the following
+ *    disclaimer, in the documentation and/or other materials provided with the
+ *    distribution.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -21,7 +29,7 @@
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- ******************************************************************************/
+ *****************************************************************************/
 
 #include <spine/CCSkeletonAnimation.h>
 #include <spine/extension.h>
@@ -33,6 +41,10 @@ using std::max;
 using std::vector;
 
 namespace spine {
+
+static void callback (AnimationState* state, int trackIndex, EventType type, Event* event, int loopCount) {
+	((CCSkeletonAnimation*)state->context)->onAnimationStateEvent(trackIndex, type, event, loopCount);
+}
 
 CCSkeletonAnimation* CCSkeletonAnimation::createWithData (SkeletonData* skeletonData) {
 	CCSkeletonAnimation* node = new CCSkeletonAnimation(skeletonData);
@@ -52,96 +64,87 @@ CCSkeletonAnimation* CCSkeletonAnimation::createWithFile (const char* skeletonDa
 	return node;
 }
 
+void CCSkeletonAnimation::initialize () {
+	listenerInstance = 0;
+	listenerMethod = 0;
+
+	state = AnimationState_create(AnimationStateData_create(skeleton->data));
+	state->context = this;
+	state->listener = callback;
+}
+
 CCSkeletonAnimation::CCSkeletonAnimation (SkeletonData *skeletonData)
 		: CCSkeleton(skeletonData) {
-	addAnimationState();
+	initialize();
 }
 
 CCSkeletonAnimation::CCSkeletonAnimation (const char* skeletonDataFile, Atlas* atlas, float scale)
 		: CCSkeleton(skeletonDataFile, atlas, scale) {
-	addAnimationState();
+	initialize();
 }
 
 CCSkeletonAnimation::CCSkeletonAnimation (const char* skeletonDataFile, const char* atlasFile, float scale)
 		: CCSkeleton(skeletonDataFile, atlasFile, scale) {
-	addAnimationState();
+	initialize();
 }
 
 CCSkeletonAnimation::~CCSkeletonAnimation () {
-	for (std::vector<AnimationStateData*>::iterator iter = stateDatas.begin(); iter != stateDatas.end(); ++iter)
-		AnimationStateData_dispose(*iter);
-
-	for (std::vector<AnimationState*>::iterator iter = states.begin(); iter != states.end(); ++iter)
-		AnimationState_dispose(*iter);
+	if (ownsAnimationStateData) AnimationStateData_dispose(state->data);
+	AnimationState_dispose(state);
 }
 
 void CCSkeletonAnimation::update (float deltaTime) {
 	super::update(deltaTime);
 
 	deltaTime *= timeScale;
-	for (std::vector<AnimationState*>::iterator iter = states.begin(); iter != states.end(); ++iter) {
-		AnimationState_update(*iter, deltaTime);
-		AnimationState_apply(*iter, skeleton);
-	}
+	AnimationState_update(state, deltaTime);
+	AnimationState_apply(state, skeleton);
 	Skeleton_updateWorldTransform(skeleton);
 }
 
-void CCSkeletonAnimation::addAnimationState (AnimationStateData* stateData) {
-	if (!stateData) {
-		stateData = AnimationStateData_create(skeleton->data);
-		stateDatas.push_back(stateData);
-	}
-	AnimationState* state = AnimationState_create(stateData);
-	states.push_back(state);
-}
-
-AnimationState* CCSkeletonAnimation::getAnimationState (int stateIndex) {
-	CCAssert(stateIndex >= 0 && stateIndex < (int)states.size(), "stateIndex out of range.");
-	return states[stateIndex];
-}
-
-void CCSkeletonAnimation::setAnimationStateData (AnimationStateData* stateData, int stateIndex) {
-	CCAssert(stateIndex >= 0 && stateIndex < (int)states.size(), "stateIndex out of range.");
+void CCSkeletonAnimation::setAnimationStateData (AnimationStateData* stateData) {
 	CCAssert(stateData, "stateData cannot be null.");
 
-	AnimationState* state = states[stateIndex];
-	for (std::vector<AnimationStateData*>::iterator iter = stateDatas.begin(); iter != stateDatas.end(); ++iter) {
-		if (state->data == *iter) {
-			AnimationStateData_dispose(state->data);
-			stateDatas.erase(iter);
-			break;
-		}
-	}
-	for (std::vector<AnimationState*>::iterator iter = states.begin(); iter != states.end(); ++iter) {
-		if (state == *iter) {
-			states.erase(iter);
-			break;
-		}
-	}
+	if (ownsAnimationStateData) AnimationStateData_dispose(state->data);
 	AnimationState_dispose(state);
 
+	ownsAnimationStateData = true;
 	state = AnimationState_create(stateData);
-	states[stateIndex] = state;
+	state->context = this;
+	state->listener = callback;
 }
 
-void CCSkeletonAnimation::setMix (const char* fromAnimation, const char* toAnimation, float duration, int stateIndex) {
-	CCAssert(stateIndex >= 0 && stateIndex < (int)states.size(), "stateIndex out of range.");
-	AnimationStateData_setMixByName(states[stateIndex]->data, fromAnimation, toAnimation, duration);
+void CCSkeletonAnimation::setMix (const char* fromAnimation, const char* toAnimation, float duration) {
+	AnimationStateData_setMixByName(state->data, fromAnimation, toAnimation, duration);
 }
 
-void CCSkeletonAnimation::setAnimation (const char* name, bool loop, int stateIndex) {
-	CCAssert(stateIndex >= 0 && stateIndex < (int)states.size(), "stateIndex out of range.");
-	AnimationState_setAnimationByName(states[stateIndex], name, loop);
+void CCSkeletonAnimation::setAnimationListener (CCObject* instance, SEL_AnimationStateEvent method) {
+	listenerInstance = instance;
+	listenerMethod = method;
 }
 
-void CCSkeletonAnimation::addAnimation (const char* name, bool loop, float delay, int stateIndex) {
-	CCAssert(stateIndex >= 0 && stateIndex < (int)states.size(), "stateIndex out of range.");
-	AnimationState_addAnimationByName(states[stateIndex], name, loop, delay);
+TrackEntry* CCSkeletonAnimation::setAnimation (int trackIndex, const char* name, bool loop) {
+	return AnimationState_setAnimationByName(state, trackIndex, name, loop);
 }
 
-void CCSkeletonAnimation::clearAnimation (int stateIndex) {
-	CCAssert(stateIndex >= 0 && stateIndex < (int)states.size(), "stateIndex out of range.");
-	AnimationState_clearAnimation(states[stateIndex]);
+TrackEntry* CCSkeletonAnimation::addAnimation (int trackIndex, const char* name, bool loop, float delay) {
+	return AnimationState_addAnimationByName(state, trackIndex, name, loop, delay);
+}
+
+TrackEntry* CCSkeletonAnimation::getCurrent (int trackIndex) { 
+	return AnimationState_getCurrent(state, trackIndex);
+}
+
+void CCSkeletonAnimation::clearTracks () {
+	AnimationState_clearTracks(state);
+}
+
+void CCSkeletonAnimation::clearTrack (int trackIndex) {
+	AnimationState_clearTrack(state, trackIndex);
+}
+
+void CCSkeletonAnimation::onAnimationStateEvent (int trackIndex, EventType type, Event* event, int loopCount) {
+	if (listenerInstance) (listenerInstance->*listenerMethod)(this, trackIndex, type, event, loopCount);
 }
 
 }

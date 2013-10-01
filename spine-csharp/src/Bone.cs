@@ -1,15 +1,23 @@
-/*******************************************************************************
+/******************************************************************************
+ * Spine Runtime Software License - Version 1.0
+ * 
  * Copyright (c) 2013, Esoteric Software
  * All rights reserved.
  * 
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
+ * Redistribution and use in source and binary forms in whole or in part, with
+ * or without modification, are permitted provided that the following conditions
+ * are met:
  * 
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
+ * 1. A Spine Single User License or Spine Professional License must be
+ *    purchased from Esoteric Software and the license must remain valid:
+ *    http://esotericsoftware.com/
+ * 2. Redistributions of source code must retain this license, which is the
+ *    above copyright notice, this declaration of conditions and the following
+ *    disclaimer.
+ * 3. Redistributions in binary form must reproduce this license, which is the
+ *    above copyright notice, this declaration of conditions and the following
+ *    disclaimer, in the documentation and/or other materials provided with the
+ *    distribution.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -21,7 +29,7 @@
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- ******************************************************************************/
+ *****************************************************************************/
 
 using System;
 
@@ -29,81 +37,87 @@ namespace Spine {
 	public class Bone {
 		static public bool yDown;
 
-		public BoneData Data { get; private set; }
-		public Bone Parent { get; private set; }
-		public float X { get; set; }
-		public float Y { get; set; }
-		public float Rotation { get; set; }
-		public float ScaleX { get; set; }
-		public float ScaleY { get; set; }
+		internal BoneData data;
+		internal Bone parent;
+		internal float x, y, rotation, scaleX, scaleY;
+		internal float m00, m01, m10, m11;
+		internal float worldX, worldY, worldRotation, worldScaleX, worldScaleY;
 
-		public float M00 { get; private set; }
-		public float M01 { get; private set; }
-		public float M10 { get; private set; }
-		public float M11 { get; private set; }
-		public float WorldX { get; private set; }
-		public float WorldY { get; private set; }
-		public float WorldRotation { get; private set; }
-		public float WorldScaleX { get; private set; }
-		public float WorldScaleY { get; private set; }
+		public BoneData Data { get { return data; } }
+		public Bone Parent { get { return parent; } }
+		public float X { get { return x; } set { x = value; } }
+		public float Y { get { return y; } set { y = value; } }
+		public float Rotation { get { return rotation; } set { rotation = value; } }
+		public float ScaleX { get { return scaleX; } set { scaleX = value; } }
+		public float ScaleY { get { return scaleY; } set { scaleY = value; } }
 
-		/** @param parent May be null. */
+		public float M00 { get { return m00; } }
+		public float M01 { get { return m01; } }
+		public float M10 { get { return m10; } }
+		public float M11 { get { return m11; } }
+		public float WorldX { get { return worldX; } }
+		public float WorldY { get { return worldY; } }
+		public float WorldRotation { get { return worldRotation; } }
+		public float WorldScaleX { get { return worldScaleX; } }
+		public float WorldScaleY { get { return worldScaleY; } }
+
+		/// <param name="parent">May be null.</param>
 		public Bone (BoneData data, Bone parent) {
 			if (data == null) throw new ArgumentNullException("data cannot be null.");
-			Data = data;
-			Parent = parent;
+			this.data = data;
+			this.parent = parent;
 			SetToSetupPose();
 		}
 
-		/** Computes the world SRT using the parent bone and the local SRT. */
+		/// <summary>Computes the world SRT using the parent bone and the local SRT.</summary>
 		public void UpdateWorldTransform (bool flipX, bool flipY) {
-			Bone parent = Parent;
+			Bone parent = this.parent;
 			if (parent != null) {
-				WorldX = X * parent.M00 + Y * parent.M01 + parent.WorldX;
-				WorldY = X * parent.M10 + Y * parent.M11 + parent.WorldY;
-				if (Data.InheritScale) {
-					WorldScaleX = parent.WorldScaleX * ScaleX;
-					WorldScaleY = parent.WorldScaleY * ScaleY;
+				worldX = x * parent.m00 + y * parent.m01 + parent.worldX;
+				worldY = x * parent.m10 + y * parent.m11 + parent.worldY;
+				if (data.inheritScale) {
+					worldScaleX = parent.worldScaleX * scaleX;
+					worldScaleY = parent.worldScaleY * scaleY;
 				} else {
-					WorldScaleX = ScaleX;
-					WorldScaleY = ScaleY;
+					worldScaleX = scaleX;
+					worldScaleY = scaleY;
 				}
-				WorldRotation = Data.InheritRotation ? parent.WorldRotation + Rotation : Rotation;
+				worldRotation = data.inheritRotation ? parent.worldRotation + rotation : rotation;
 			} else {
-				WorldX = flipX ? -X : X;
-				WorldY = flipY ? -Y : Y;
-				WorldScaleX = ScaleX;
-				WorldScaleY = ScaleY;
-				WorldRotation = Rotation;
+				worldX = flipX ? -x : x;
+				worldY = flipY ? -y : y;
+				worldScaleX = scaleX;
+				worldScaleY = scaleY;
+				worldRotation = rotation;
 			}
-			float radians = WorldRotation * (float)Math.PI / 180;
+			float radians = worldRotation * (float)Math.PI / 180;
 			float cos = (float)Math.Cos(radians);
 			float sin = (float)Math.Sin(radians);
-			M00 = cos * WorldScaleX;
-			M10 = sin * WorldScaleX;
-			M01 = -sin * WorldScaleY;
-			M11 = cos * WorldScaleY;
+			m00 = cos * worldScaleX;
+			m10 = sin * worldScaleX;
+			m01 = -sin * worldScaleY;
+			m11 = cos * worldScaleY;
 			if (flipX) {
-				M00 = -M00;
-				M01 = -M01;
+				m00 = -m00;
+				m01 = -m01;
 			}
 			if (flipY != yDown) {
-				M10 = -M10;
-				M11 = -M11;
+				m10 = -m10;
+				m11 = -m11;
 			}
 		}
 
 		public void SetToSetupPose () {
-			BoneData data = Data;
-			X = data.X;
-			Y = data.Y;
-			Rotation = data.Rotation;
-			ScaleX = data.ScaleX;
-			ScaleY = data.ScaleY;
+			BoneData data = this.data;
+			x = data.x;
+			y = data.y;
+			rotation = data.rotation;
+			scaleX = data.scaleX;
+			scaleY = data.scaleY;
 		}
 
 		override public String ToString () {
-			return Data.Name;
+			return data.name;
 		}
 	}
 }

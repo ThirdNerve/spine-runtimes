@@ -1,15 +1,23 @@
-/*******************************************************************************
+/******************************************************************************
+ * Spine Runtime Software License - Version 1.0
+ * 
  * Copyright (c) 2013, Esoteric Software
  * All rights reserved.
  * 
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
+ * Redistribution and use in source and binary forms in whole or in part, with
+ * or without modification, are permitted provided that the following conditions
+ * are met:
  * 
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
+ * 1. A Spine Single User License or Spine Professional License must be
+ *    purchased from Esoteric Software and the license must remain valid:
+ *    http://esotericsoftware.com/
+ * 2. Redistributions of source code must retain this license, which is the
+ *    above copyright notice, this declaration of conditions and the following
+ *    disclaimer.
+ * 3. Redistributions in binary form must reproduce this license, which is the
+ *    above copyright notice, this declaration of conditions and the following
+ *    disclaimer, in the documentation and/or other materials provided with the
+ *    distribution.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -21,7 +29,7 @@
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- ******************************************************************************/
+ *****************************************************************************/
 
 using System;
 using System.Collections.Generic;
@@ -34,8 +42,11 @@ namespace Spine {
 		SpriteBatcher batcher;
 		BasicEffect effect;
 		RasterizerState rasterizerState;
-		public BlendState BlendState { get; set; }
 		float[] vertices = new float[8];
+		BlendState defaultBlendState;
+
+		private bool premultipliedAlpha;
+		public bool PremultipliedAlpha { get { return premultipliedAlpha; } set { premultipliedAlpha = value; } }
 
 		public SkeletonRenderer (GraphicsDevice device) {
 			this.device = device;
@@ -51,14 +62,14 @@ namespace Spine {
 			rasterizerState = new RasterizerState();
 			rasterizerState.CullMode = CullMode.None;
 
-			BlendState = BlendState.AlphaBlend;
-
 			Bone.yDown = true;
 		}
 
 		public void Begin (Matrix cameraMatrix) {
+			defaultBlendState = premultipliedAlpha ? BlendState.AlphaBlend : BlendState.NonPremultiplied;
+
 			device.RasterizerState = rasterizerState;
-			device.BlendState = BlendState;
+			device.BlendState = defaultBlendState;
 
 			effect.Projection = Matrix.CreateOrthographicOffCenter(0, device.Viewport.Width, device.Viewport.Height, 0, 1, 0);
 			effect.View = Matrix.CreateLookAt(new Vector3(0.0f, 0.0f, 1.0f), Vector3.Zero, Vector3.Up) * cameraMatrix;
@@ -73,37 +84,35 @@ namespace Spine {
 
 		public void Draw (Skeleton skeleton) {
 			List<Slot> drawOrder = skeleton.DrawOrder;
+			float x = skeleton.X, y = skeleton.Y;
+			float skeletonR = skeleton.R, skeletonG = skeleton.G, skeletonB = skeleton.B, skeletonA = skeleton.A;
 			for (int i = 0, n = drawOrder.Count; i < n; i++) {
 				Slot slot = drawOrder[i];
 				RegionAttachment regionAttachment = slot.Attachment as RegionAttachment;
 				if (regionAttachment != null) {
+					BlendState blend = slot.Data.AdditiveBlending ? BlendState.Additive : defaultBlendState;
+					if (device.BlendState != blend) {
+						End();
+						device.BlendState = blend;
+					}
+
 					SpriteBatchItem item = batcher.CreateBatchItem();
 					AtlasRegion region = (AtlasRegion)regionAttachment.RendererObject;
 					item.Texture = (Texture2D)region.page.rendererObject;
 
-					byte r = (byte)(skeleton.R * slot.R * slot.TintR * 255);
-					byte g = (byte)(skeleton.G * slot.G * slot.TintG * 255);
-					byte b = (byte)(skeleton.B * slot.B * slot.TintB * 255);
-					byte a = (byte)(skeleton.A * slot.A * slot.TintA * 255);
-					item.vertexTL.Color.R = r;
-					item.vertexTL.Color.G = g;
-					item.vertexTL.Color.B = b;
-					item.vertexTL.Color.A = a;
-					item.vertexBL.Color.R = r;
-					item.vertexBL.Color.G = g;
-					item.vertexBL.Color.B = b;
-					item.vertexBL.Color.A = a;
-					item.vertexBR.Color.R = r;
-					item.vertexBR.Color.G = g;
-					item.vertexBR.Color.B = b;
-					item.vertexBR.Color.A = a;
-					item.vertexTR.Color.R = r;
-					item.vertexTR.Color.G = g;
-					item.vertexTR.Color.B = b;
-					item.vertexTR.Color.A = a;
+					Color color;
+					float a = skeletonA * slot.A;
+					if (premultipliedAlpha)
+						color = new Color(skeletonR * slot.R * slot.TintR * a * slot.TintA, skeletonG * slot.G * slot.TintG * a * slot.TintA, skeletonB * slot.B * slot.TintB * a * slot.TintA, a * slot.TintA);
+					else
+						color = new Color(skeletonR * slot.R * slot.TintR, skeletonG * slot.G * slot.TintG, skeletonB * slot.B * slot.TintB, a * slot.TintA);
+					item.vertexTL.Color = color;
+					item.vertexBL.Color = color;
+					item.vertexBR.Color = color;
+					item.vertexTR.Color = color;
 
 					float[] vertices = this.vertices;
-					regionAttachment.ComputeVertices(skeleton.X, skeleton.Y, slot.Bone, vertices);
+					regionAttachment.ComputeWorldVertices(x, y, slot.Bone, vertices);
 					item.vertexTL.Position.X = vertices[RegionAttachment.X1];
 					item.vertexTL.Position.Y = vertices[RegionAttachment.Y1];
 					item.vertexTL.Position.Z = 0;

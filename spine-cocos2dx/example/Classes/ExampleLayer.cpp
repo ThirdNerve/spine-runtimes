@@ -1,27 +1,4 @@
-/*******************************************************************************
- * Copyright (c) 2013, Esoteric Software
- * All rights reserved.
- * 
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- * 
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- ******************************************************************************/
+
 
 #include "ExampleLayer.h"
 #include <iostream>
@@ -40,18 +17,19 @@ CCScene* ExampleLayer::scene () {
 
 bool ExampleLayer::init () {
 	if (!CCLayer::init()) return false;
-
+	
 	skeletonNode = CCSkeletonAnimation::createWithFile("spineboy.json", "spineboy.atlas");
 	skeletonNode->setMix("walk", "jump", 0.2f);
 	skeletonNode->setMix("jump", "walk", 0.4f);
+	
+	skeletonNode->setAnimationListener(this, animationStateEvent_selector(ExampleLayer::animationStateEvent));
+	skeletonNode->setAnimation(0, "walk", false);
+	skeletonNode->addAnimation(0, "jump", false);
+	skeletonNode->addAnimation(0, "walk", true);
+	skeletonNode->addAnimation(0, "jump", true, 4);
+	skeletonNode->addAnimation(1, "drawOrder", true);
 
-	skeletonNode->setAnimation("walk", true);
-	// This shows how to setup animations to play back to back.
-	//skeletonNode->addAnimation("jump", true);
-	//skeletonNode->addAnimation("walk", true);
-	//skeletonNode->addAnimation("jump", true);
-
-	skeletonNode->timeScale = 0.3f;
+	// skeletonNode->timeScale = 0.3f;
 	skeletonNode->debugBones = true;
 
 	skeletonNode->runAction(CCRepeatForever::create(CCSequence::create(CCFadeOut::create(1),
@@ -69,10 +47,27 @@ bool ExampleLayer::init () {
 }
 
 void ExampleLayer::update (float deltaTime) {
-    if (skeletonNode->states[0]->loop) {
-        if (skeletonNode->states[0]->time > 2) skeletonNode->setAnimation("jump", false);
-    } else {
-        if (skeletonNode->states[0]->time > 1) skeletonNode->setAnimation("walk", true);
-    }
-    // if (skeletonNode->states[0]->time > 0.1) CCDirector::sharedDirector()->replaceScene(ExampleLayer::scene());
+	// Test releasing memory.
+	// if (entry->time > 0.1) CCDirector::sharedDirector()->replaceScene(ExampleLayer::scene());
+}
+
+void ExampleLayer::animationStateEvent (CCSkeletonAnimation* node, int trackIndex, EventType type, Event* event, int loopCount) {
+	TrackEntry* entry = AnimationState_getCurrent(node->state, trackIndex);
+	const char* animationName = (entry && entry->animation) ? entry->animation->name : 0;
+
+	switch (type) {
+	case ANIMATION_START:
+		CCLog("%d start: %s", trackIndex, animationName);
+		break;
+	case ANIMATION_END:
+		CCLog("%d end: %s", trackIndex, animationName);
+		break;
+	case ANIMATION_COMPLETE:
+		CCLog("%d complete: %s, %d", trackIndex, animationName, loopCount);
+		break;
+	case ANIMATION_EVENT:
+		CCLog("%d event: %s, %s: %d, %f, %s", trackIndex, animationName, event->data->name, event->intValue, event->floatValue, event->stringValue);
+		break;
+	}
+	fflush(stdout);
 }

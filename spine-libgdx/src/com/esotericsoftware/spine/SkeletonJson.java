@@ -1,15 +1,23 @@
-/*******************************************************************************
+/******************************************************************************
+ * Spine Runtime Software License - Version 1.0
+ * 
  * Copyright (c) 2013, Esoteric Software
  * All rights reserved.
  * 
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
+ * Redistribution and use in source and binary forms in whole or in part, with
+ * or without modification, are permitted provided that the following conditions
+ * are met:
  * 
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
+ * 1. A Spine Single User License or Spine Professional License must be
+ *    purchased from Esoteric Software and the license must remain valid:
+ *    http://esotericsoftware.com/
+ * 2. Redistributions of source code must retain this license, which is the
+ *    above copyright notice, this declaration of conditions and the following
+ *    disclaimer.
+ * 3. Redistributions in binary form must reproduce this license, which is the
+ *    above copyright notice, this declaration of conditions and the following
+ *    disclaimer, in the documentation and/or other materials provided with the
+ *    distribution.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -21,13 +29,16 @@
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- ******************************************************************************/
+ *****************************************************************************/
 
 package com.esotericsoftware.spine;
+
+// BOZO - Event values don't seem to key properly.
 
 import com.esotericsoftware.spine.Animation.AttachmentTimeline;
 import com.esotericsoftware.spine.Animation.ColorTimeline;
 import com.esotericsoftware.spine.Animation.CurveTimeline;
+import com.esotericsoftware.spine.Animation.DrawOrderTimeline;
 import com.esotericsoftware.spine.Animation.EventTimeline;
 import com.esotericsoftware.spine.Animation.RotateTimeline;
 import com.esotericsoftware.spine.Animation.ScaleTimeline;
@@ -37,6 +48,7 @@ import com.esotericsoftware.spine.attachments.AtlasAttachmentLoader;
 import com.esotericsoftware.spine.attachments.Attachment;
 import com.esotericsoftware.spine.attachments.AttachmentLoader;
 import com.esotericsoftware.spine.attachments.AttachmentType;
+import com.esotericsoftware.spine.attachments.BoundingBoxAttachment;
 import com.esotericsoftware.spine.attachments.RegionAttachment;
 import com.esotericsoftware.spine.attachments.RegionSequenceAttachment;
 import com.esotericsoftware.spine.attachments.RegionSequenceAttachment.Mode;
@@ -127,6 +139,7 @@ public class SkeletonJson {
 			Skin skin = new Skin(skinMap.name());
 			for (JsonValue slotEntry = skinMap.child(); slotEntry != null; slotEntry = slotEntry.next()) {
 				int slotIndex = skeletonData.findSlotIndex(slotEntry.name());
+				if (slotIndex == -1) throw new SerializationException("Slot not found: " + slotEntry.name());
 				for (JsonValue entry = slotEntry.child(); entry != null; entry = entry.next()) {
 					Attachment attachment = readAttachment(skin, entry.name(), entry);
 					if (attachment != null) skin.addAttachment(slotIndex, entry.name(), attachment);
@@ -170,9 +183,8 @@ public class SkeletonJson {
 
 			String modeString = map.getString("mode");
 			regionSequenceAttachment.setMode(modeString == null ? Mode.forward : Mode.valueOf(modeString));
-		}
 
-		if (attachment instanceof RegionAttachment) {
+		} else if (attachment instanceof RegionAttachment) {
 			RegionAttachment regionAttachment = (RegionAttachment)attachment;
 			regionAttachment.setX(map.getFloat("x", 0) * scale);
 			regionAttachment.setY(map.getFloat("y", 0) * scale);
@@ -182,6 +194,15 @@ public class SkeletonJson {
 			regionAttachment.setWidth(map.getFloat("width", 32) * scale);
 			regionAttachment.setHeight(map.getFloat("height", 32) * scale);
 			regionAttachment.updateOffset();
+
+		} else if (attachment instanceof BoundingBoxAttachment) {
+			BoundingBoxAttachment box = (BoundingBoxAttachment)attachment;
+			JsonValue verticesArray = map.require("vertices");
+			float[] vertices = new float[verticesArray.size];
+			int i = 0;
+			for (JsonValue point = verticesArray.child; point != null; point = point.next())
+				vertices[i++] = point.asFloat() * scale;
+			box.setVertices(vertices);
 		}
 
 		return attachment;
@@ -240,6 +261,7 @@ public class SkeletonJson {
 
 		for (JsonValue slotMap = map.getChild("slots"); slotMap != null; slotMap = slotMap.next()) {
 			int slotIndex = skeletonData.findSlotIndex(slotMap.name());
+			if (slotIndex == -1) throw new SerializationException("Slot not found: " + slotMap.name());
 
 			for (JsonValue timelineMap = slotMap.child(); timelineMap != null; timelineMap = timelineMap.next()) {
 				String timelineName = timelineMap.name();
@@ -287,6 +309,42 @@ public class SkeletonJson {
 				event.floatValue = eventMap.getFloat("float", eventData.getFloat());
 				event.stringValue = eventMap.getString("string", eventData.getString());
 				timeline.setFrame(frameIndex++, eventMap.getFloat("time"), event);
+			}
+			timelines.add(timeline);
+			duration = Math.max(duration, timeline.getFrames()[timeline.getFrameCount() - 1]);
+		}
+
+		JsonValue drawOrdersMap = map.get("draworder");
+		if (drawOrdersMap != null) {
+			DrawOrderTimeline timeline = new DrawOrderTimeline(drawOrdersMap.size);
+			int slotCount = skeletonData.slots.size;
+			int frameIndex = 0;
+			for (JsonValue drawOrderMap = drawOrdersMap.child; drawOrderMap != null; drawOrderMap = drawOrderMap.next()) {
+				int[] drawOrder = null;
+				JsonValue offsets = drawOrderMap.get("offsets");
+				if (offsets != null) {
+					drawOrder = new int[slotCount];
+					for (int i = slotCount - 1; i >= 0; i--)
+						drawOrder[i] = -1;
+					int[] unchanged = new int[slotCount - offsets.size];
+					int originalIndex = 0, unchangedIndex = 0;
+					for (JsonValue offsetMap = offsets.child; offsetMap != null; offsetMap = offsetMap.next()) {
+						int slotIndex = skeletonData.findSlotIndex(offsetMap.getString("slot"));
+						if (slotIndex == -1) throw new SerializationException("Slot not found: " + offsetMap.getString("slot"));
+						// Collect unchanged items.
+						while (originalIndex != slotIndex)
+							unchanged[unchangedIndex++] = originalIndex++;
+						// Set changed items.
+						drawOrder[originalIndex + offsetMap.getInt("offset")] = originalIndex++;
+					}
+					// Collect remaining unchanged items.
+					while (originalIndex < slotCount)
+						unchanged[unchangedIndex++] = originalIndex++;
+					// Fill in unchanged items.
+					for (int i = slotCount - 1; i >= 0; i--)
+						if (drawOrder[i] == -1) drawOrder[i] = unchanged[--unchangedIndex];
+				}
+				timeline.setFrame(frameIndex++, drawOrderMap.getFloat("time"), drawOrder);
 			}
 			timelines.add(timeline);
 			duration = Math.max(duration, timeline.getFrames()[timeline.getFrameCount() - 1]);

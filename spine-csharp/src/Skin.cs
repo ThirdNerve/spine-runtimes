@@ -1,15 +1,23 @@
-/*******************************************************************************
+/******************************************************************************
+ * Spine Runtime Software License - Version 1.0
+ * 
  * Copyright (c) 2013, Esoteric Software
  * All rights reserved.
  * 
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
+ * Redistribution and use in source and binary forms in whole or in part, with
+ * or without modification, are permitted provided that the following conditions
+ * are met:
  * 
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
+ * 1. A Spine Single User License or Spine Professional License must be
+ *    purchased from Esoteric Software and the license must remain valid:
+ *    http://esotericsoftware.com/
+ * 2. Redistributions of source code must retain this license, which is the
+ *    above copyright notice, this declaration of conditions and the following
+ *    disclaimer.
+ * 3. Redistributions in binary form must reproduce this license, which is the
+ *    above copyright notice, this declaration of conditions and the following
+ *    disclaimer, in the documentation and/or other materials provided with the
+ *    distribution.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -21,20 +29,22 @@
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- ******************************************************************************/
+ *****************************************************************************/
 
 using System;
 using System.Collections.Generic;
 
 namespace Spine {
-	/** Stores attachments by slot index and attachment name. */
+	/// <summary>Stores attachments by slot index and attachment name.</summary>
 	public class Skin {
-		public String Name { get; private set; }
+		internal String name;
+
+		public String Name { get { return name; } }
 		private Dictionary<KeyValuePair<int, String>, Attachment> attachments = new Dictionary<KeyValuePair<int, String>, Attachment>();
 
 		public Skin (String name) {
 			if (name == null) throw new ArgumentNullException("name cannot be null.");
-			Name = name;
+			this.name = name;
 		}
 
 		public void AddAttachment (int slotIndex, String name, Attachment attachment) {
@@ -42,7 +52,7 @@ namespace Spine {
 			attachments.Add(new KeyValuePair<int, String>(slotIndex, name), attachment);
 		}
 
-		/** @return May be null. */
+		/// <returns>May be null.</returns>
 		public Attachment GetAttachment (int slotIndex, String name) {
 			Attachment attachment;
 			attachments.TryGetValue(new KeyValuePair<int, String>(slotIndex, name), out attachment);
@@ -62,15 +72,15 @@ namespace Spine {
 		}
 
 		override public String ToString () {
-			return Name;
+			return name;
 		}
 
-		/** Attach all attachments from this skin if the corresponding attachment from the old skin is currently attached. */
+		/// <summary>Attach all attachments from this skin if the corresponding attachment from the old skin is currently attached.</summary>
 		internal void AttachAll (Skeleton skeleton, Skin oldSkin) {
 			foreach (KeyValuePair<KeyValuePair<int, String>, Attachment> entry in oldSkin.attachments) {
 				int slotIndex = entry.Key.Key;
-				Slot slot = skeleton.Slots[slotIndex];
-				if (slot.Attachment == entry.Value) {
+				Slot slot = skeleton.slots[slotIndex];
+				if (slot.attachment == entry.Value) {
 					Attachment attachment = GetAttachment(slotIndex, entry.Key.Value);
 					if (attachment != null) slot.Attachment = attachment;
 				}

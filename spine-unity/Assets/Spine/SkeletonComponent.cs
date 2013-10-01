@@ -1,15 +1,23 @@
-/*******************************************************************************
+/******************************************************************************
+ * Spine Runtime Software License - Version 1.0
+ * 
  * Copyright (c) 2013, Esoteric Software
  * All rights reserved.
  * 
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
+ * Redistribution and use in source and binary forms in whole or in part, with
+ * or without modification, are permitted provided that the following conditions
+ * are met:
  * 
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
+ * 1. A Spine Single User License or Spine Professional License must be
+ *    purchased from Esoteric Software and the license must remain valid:
+ *    http://esotericsoftware.com/
+ * 2. Redistributions of source code must retain this license, which is the
+ *    above copyright notice, this declaration of conditions and the following
+ *    disclaimer.
+ * 3. Redistributions in binary form must reproduce this license, which is the
+ *    above copyright notice, this declaration of conditions and the following
+ *    disclaimer, in the documentation and/or other materials provided with the
+ *    distribution.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -21,7 +29,8 @@
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- ******************************************************************************/
+ *****************************************************************************/
+
 using System;
 using System.IO;
 using System.Collections.Generic;
@@ -107,7 +116,7 @@ public class SkeletonComponent : MonoBehaviour {
 			RegionAttachment regionAttachment = drawOrder[i].Attachment as RegionAttachment;
 			if (regionAttachment == null)
 				continue;
-			
+		
 			// Add submesh when material changes.
 			Material material = (Material)((AtlasRegion)regionAttachment.RendererObject).page.rendererObject;
 			if (lastMaterial != material && lastMaterial != null) {
@@ -158,8 +167,8 @@ public class SkeletonComponent : MonoBehaviour {
 			RegionAttachment regionAttachment = slot.Attachment as RegionAttachment;
 			if (regionAttachment == null)
 				continue;
-
-			regionAttachment.ComputeVertices(skeleton.X, skeleton.Y, slot.Bone, vertexPositions);
+			
+			regionAttachment.ComputeWorldVertices(skeleton.X, skeleton.Y, slot.Bone, vertexPositions);
 			
 			vertices[vertexIndex] = new Vector3(vertexPositions[RegionAttachment.X1], vertexPositions[RegionAttachment.Y1], 0);
 			vertices[vertexIndex + 1] = new Vector3(vertexPositions[RegionAttachment.X4], vertexPositions[RegionAttachment.Y4], 0);
@@ -188,7 +197,7 @@ public class SkeletonComponent : MonoBehaviour {
 		mesh.uv = uvs;
 
 		mesh.subMeshCount = submeshMaterials.Count;
-		for (int i = 0; i < mesh.subMeshCount; ++i)
+		for (int i = 0, n = mesh.subMeshCount; i < n; ++i)
 			mesh.SetTriangles(submeshIndexes[i], i);
 
 		if (calculateNormals) {
@@ -196,9 +205,11 @@ public class SkeletonComponent : MonoBehaviour {
 			if (calculateTangents) {
 				Vector4[] tangents = this.tangents;
 				int count = mesh.normals.Length;
-				if (tangents.Length != count) this.tangents = tangents = new Vector4[count];
-				for (int i = 0; i < count; i++)
-					tangents[i] = new Vector4(1, 0, 0, 1);
+				if (tangents.Length != count) {
+					this.tangents = tangents = new Vector4[count];
+					for (int i = 0; i < count; i++)
+						tangents[i] = new Vector4(1, 0, 0, 1);
+				}
 				mesh.tangents = tangents;
 			}
 		}
@@ -224,7 +235,6 @@ public class SkeletonComponent : MonoBehaviour {
 			} else {
 				if (indexes.Length >= indexCount) { // Allow last submesh to have more indices than required.
 					if (submeshFirstVertex[submeshIndex] == vertexIndex) return;
-					indexCount = indexes.Length; // Update vertices to the end.
 				} else
 					submeshIndexes[submeshIndex] = indexes = new int[indexCount];
 			}
@@ -243,6 +253,12 @@ public class SkeletonComponent : MonoBehaviour {
 			indexes[i + 3] = vertexIndex + 2;
 			indexes[i + 4] = vertexIndex + 3;
 			indexes[i + 5] = vertexIndex + 1;
+		}
+
+		if (lastSubmesh) {
+			// Update vertices to the end.
+			for (int i = indexCount, n = indexes.Length; i < n; i++)
+				indexes[i] = 0;
 		}
 	}
 	

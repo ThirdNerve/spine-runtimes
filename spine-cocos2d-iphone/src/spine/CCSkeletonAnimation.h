@@ -1,15 +1,23 @@
-/*******************************************************************************
+/******************************************************************************
+ * Spine Runtime Software License - Version 1.0
+ * 
  * Copyright (c) 2013, Esoteric Software
  * All rights reserved.
  * 
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
+ * Redistribution and use in source and binary forms in whole or in part, with
+ * or without modification, are permitted provided that the following conditions
+ * are met:
  * 
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
+ * 1. A Spine Single User License or Spine Professional License must be
+ *    purchased from Esoteric Software and the license must remain valid:
+ *    http://esotericsoftware.com/
+ * 2. Redistributions of source code must retain this license, which is the
+ *    above copyright notice, this declaration of conditions and the following
+ *    disclaimer.
+ * 3. Redistributions in binary form must reproduce this license, which is the
+ *    above copyright notice, this declaration of conditions and the following
+ *    disclaimer, in the documentation and/or other materials provided with the
+ *    distribution.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -21,19 +29,30 @@
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- ******************************************************************************/
+ *****************************************************************************/
 
 #import <spine/spine.h>
 #import <spine/CCSkeleton.h>
 #import "cocos2d.h"
 
-/**
-Draws an animated skeleton, providing a simple API for applying one or more animations and queuing animations to be played later.
-*/
-@interface CCSkeletonAnimation : CCSkeleton {
-	NSMutableArray* _states;
+@class CCSkeletonAnimation;
 
-	NSMutableArray* _stateDatas;
+@protocol CCSkeletonAnimationDelegate <NSObject>
+@optional
+- (void) animationDidStart:(CCSkeletonAnimation*)animation track:(int)trackIndex;
+- (void) animationWillEnd:(CCSkeletonAnimation*)animation track:(int)trackIndex;
+- (void) animationDidTriggerEvent:(CCSkeletonAnimation*)animation track:(int)trackIndex event:(Event*)event;
+- (void) animationDidComplete:(CCSkeletonAnimation*)animation track:(int)trackIndex loopCount:(int)loopCount;
+@end
+
+/** Draws an animated skeleton, providing an AnimationState for applying one or more animations and queuing animations to be
+ * played later. */
+@interface CCSkeletonAnimation : CCSkeleton {
+	AnimationState* _state;
+	bool _ownsAnimationStateData;
+
+	id<CCSkeletonAnimationDelegate> _delegate;
+	bool _delegateStart, _delegateEnd, _delegateEvent, _delegateComplete;
 }
 
 + (id) skeletonWithData:(SkeletonData*)skeletonData ownsSkeletonData:(bool)ownsSkeletonData;
@@ -44,23 +63,18 @@ Draws an animated skeleton, providing a simple API for applying one or more anim
 - (id) initWithFile:(NSString*)skeletonDataFile atlas:(Atlas*)atlas scale:(float)scale;
 - (id) initWithFile:(NSString*)skeletonDataFile atlasFile:(NSString*)atlasFile scale:(float)scale;
 
-- (void) addAnimationState;
-- (void) addAnimationState:(AnimationStateData*)stateData;
-- (AnimationState*) getAnimationState:(int)stateIndex;
-- (void) setAnimationStateData:(AnimationStateData*)stateData forState:(int)stateIndex;
-
+- (void) setAnimationStateData:(AnimationStateData*)stateData;
 - (void) setMixFrom:(NSString*)fromAnimation to:(NSString*)toAnimation duration:(float)duration;
-- (void) setMixFrom:(NSString*)fromAnimation to:(NSString*)toAnimation duration:(float)duration forState:(int)stateIndex;
 
-- (void) setAnimation:(NSString*)name loop:(bool)loop;
-- (void) setAnimation:(NSString*)name loop:(bool)loop forState:(int)stateIndex;
+- (void) setDelegate:(id<CCSkeletonAnimationDelegate>)delegate;
+- (TrackEntry*) setAnimationForTrack:(int)trackIndex name:(NSString*)name loop:(bool)loop;
+- (TrackEntry*) addAnimationForTrack:(int)trackIndex name:(NSString*)name loop:(bool)loop afterDelay:(int)delay;
+- (TrackEntry*) getCurrentForTrack:(int)trackIndex;
+- (void) clearTracks;
+- (void) clearTrack:(int)trackIndex;
 
-- (void) addAnimation:(NSString*)name loop:(bool)loop afterDelay:(float)delay;
-- (void) addAnimation:(NSString*)name loop:(bool)loop afterDelay:(float)delay forState:(int)stateIndex;
+- (void) onAnimationStateEvent:(int)trackIndex type:(EventType)type event:(Event*)event loopCount:(int)loopCount;
 
-- (void) clearAnimation;
-- (void) clearAnimationForState:(int)stateIndex;
-
-@property (retain, nonatomic, readonly) NSMutableArray* states;
+@property (nonatomic, readonly) AnimationState* state;
 
 @end

@@ -1,15 +1,23 @@
-/*******************************************************************************
+/******************************************************************************
+ * Spine Runtime Software License - Version 1.0
+ * 
  * Copyright (c) 2013, Esoteric Software
  * All rights reserved.
  * 
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
+ * Redistribution and use in source and binary forms in whole or in part, with
+ * or without modification, are permitted provided that the following conditions
+ * are met:
  * 
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
+ * 1. A Spine Single User License or Spine Professional License must be
+ *    purchased from Esoteric Software and the license must remain valid:
+ *    http://esotericsoftware.com/
+ * 2. Redistributions of source code must retain this license, which is the
+ *    above copyright notice, this declaration of conditions and the following
+ *    disclaimer.
+ * 3. Redistributions in binary form must reproduce this license, which is the
+ *    above copyright notice, this declaration of conditions and the following
+ *    disclaimer, in the documentation and/or other materials provided with the
+ *    distribution.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -21,7 +29,7 @@
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- ******************************************************************************/
+ *****************************************************************************/
 
 package com.esotericsoftware.spine;
 
@@ -57,32 +65,34 @@ public class Animation {
 
 	/** @deprecated */
 	public void apply (Skeleton skeleton, float time, boolean loop) {
-		apply(skeleton, Float.MAX_VALUE, time, loop, null);
+		apply(skeleton, time, time, loop, null);
 	}
 
 	/** Poses the skeleton at the specified time for this animation.
+	 * @param lastTime The last time the animation was applied. Can be equal to time if events shouldn't be fired.
 	 * @param events Any triggered events are added. May be null if lastTime is known to not cause any events to trigger. */
 	public void apply (Skeleton skeleton, float lastTime, float time, boolean loop, Array<Event> events) {
 		if (skeleton == null) throw new IllegalArgumentException("skeleton cannot be null.");
 
 		if (loop && duration != 0) {
-			lastTime %= duration;
 			time %= duration;
+			lastTime %= duration;
 		}
 
 		Array<Timeline> timelines = this.timelines;
 		for (int i = 0, n = timelines.size; i < n; i++)
-			timelines.get(i).apply(skeleton, lastTime, time, 1, events);
+			timelines.get(i).apply(skeleton, lastTime, time, events, 1);
 	}
 
 	/** @deprecated */
 	public void mix (Skeleton skeleton, float time, boolean loop, float alpha) {
-		mix(skeleton, Float.MAX_VALUE, time, loop, null, alpha);
+		mix(skeleton, time, time, loop, null, alpha);
 	}
 
 	/** Poses the skeleton at the specified time for this animation mixed with the current pose.
-	 * @param alpha The amount of this animation that affects the current pose.
-	 * @param events Any triggered events are added. May be null if lastTime is known to not cause any events to trigger. */
+	 * @param lastTime The last time the animation was applied. Can be equal to time if events shouldn't be fired.
+	 * @param events Any triggered events are added. May be null if lastTime is known to not cause any events to trigger.
+	 * @param alpha The amount of this animation that affects the current pose. */
 	public void mix (Skeleton skeleton, float lastTime, float time, boolean loop, Array<Event> events, float alpha) {
 		if (skeleton == null) throw new IllegalArgumentException("skeleton cannot be null.");
 
@@ -93,7 +103,7 @@ public class Animation {
 
 		Array<Timeline> timelines = this.timelines;
 		for (int i = 0, n = timelines.size; i < n; i++)
-			timelines.get(i).apply(skeleton, lastTime, time, alpha, events);
+			timelines.get(i).apply(skeleton, lastTime, time, events, alpha);
 	}
 
 	public String getName () {
@@ -104,7 +114,8 @@ public class Animation {
 		return name;
 	}
 
-	/** @param target After the first and before the last entry. */
+	/** @param target After the first and before the last value.
+	 * @return index of first value greater than the target. */
 	static int binarySearch (float[] values, float target, int step) {
 		int low = 0;
 		int high = values.length / step - 2;
@@ -128,7 +139,7 @@ public class Animation {
 
 	static public interface Timeline {
 		/** Sets the value(s) for the specified time. */
-		public void apply (Skeleton skeleton, float lastTime, float time, float alpha, Array<Event> events);
+		public void apply (Skeleton skeleton, float lastTime, float time, Array<Event> events, float alpha);
 	}
 
 	/** Base class for frames that use an interpolation bezier curve. */
@@ -253,7 +264,7 @@ public class Animation {
 			frames[frameIndex + 1] = angle;
 		}
 
-		public void apply (Skeleton skeleton, float lastTime, float time, float alpha, Array<Event> events) {
+		public void apply (Skeleton skeleton, float lastTime, float time, Array<Event> events, float alpha) {
 			float[] frames = this.frames;
 			if (time < frames[0]) return; // Time is before first frame.
 
@@ -323,7 +334,7 @@ public class Animation {
 			frames[frameIndex + 2] = y;
 		}
 
-		public void apply (Skeleton skeleton, float lastTime, float time, float alpha, Array<Event> events) {
+		public void apply (Skeleton skeleton, float lastTime, float time, Array<Event> events, float alpha) {
 			float[] frames = this.frames;
 			if (time < frames[0]) return; // Time is before first frame.
 
@@ -353,7 +364,7 @@ public class Animation {
 			super(frameCount);
 		}
 
-		public void apply (Skeleton skeleton, float lastTime, float time, float alpha, Array<Event> events) {
+		public void apply (Skeleton skeleton, float lastTime, float time, Array<Event> events, float alpha) {
 			float[] frames = this.frames;
 			if (time < frames[0]) return; // Time is before first frame.
 
@@ -416,7 +427,7 @@ public class Animation {
 			frames[frameIndex + 4] = a;
 		}
 
-		public void apply (Skeleton skeleton, float lastTime, float time, float alpha, Array<Event> events) {
+		public void apply (Skeleton skeleton, float lastTime, float time, Array<Event> events, float alpha) {
 			float[] frames = this.frames;
 			if (time < frames[0]) return; // Time is before first frame.
 
@@ -489,7 +500,7 @@ public class Animation {
 			attachmentNames[frameIndex] = attachmentName;
 		}
 
-		public void apply (Skeleton skeleton, float lastTime, float time, float alpha, Array<Event> events) {
+		public void apply (Skeleton skeleton, float lastTime, float time, Array<Event> events, float alpha) {
 			float[] frames = this.frames;
 			if (time < frames[0]) return; // Time is before first frame.
 
@@ -522,30 +533,88 @@ public class Animation {
 			return frames;
 		}
 
+		public Event[] getEvents () {
+			return events;
+		}
+
 		/** Sets the time of the specified keyframe. */
 		public void setFrame (int frameIndex, float time, Event event) {
 			frames[frameIndex] = time;
 			events[frameIndex] = event;
 		}
 
-		public void apply (Skeleton skeleton, float lastTime, float time, float alpha, Array<Event> firedEvents) {
+		public void apply (Skeleton skeleton, float lastTime, float time, Array<Event> firedEvents, float alpha) {
 			float[] frames = this.frames;
-			if (time < frames[0]) return; // Time is before first frame.
-
 			int frameCount = frames.length;
-			if (lastTime >= frames[frameCount - 1]) return; // Last time is after last frame.
+
+			if (lastTime > time) { // Fire events after last time for looped animations.
+				apply(skeleton, lastTime, Integer.MAX_VALUE, firedEvents, alpha);
+				lastTime = 0;
+			} else if (lastTime >= frames[frameCount - 1]) return; // Last time is after last frame.
 
 			int frameIndex;
-			if (frameCount == 1)
+			if (lastTime <= frames[0] || frameCount == 1)
 				frameIndex = 0;
 			else {
 				frameIndex = binarySearch(frames, lastTime, 1);
 				float frame = frames[frameIndex];
-				while (frameIndex > 0 && frame == frames[frameIndex - 1])
-					frameIndex--; // Fire multiple events with the same frame.
+				while (frameIndex > 0) { // Fire multiple events with the same frame.
+					if (frames[frameIndex - 1] != frame) break;
+					frameIndex--;
+				}
 			}
-			for (; frameIndex < frameCount && time > frames[frameIndex]; frameIndex++)
+			for (; frameIndex < frameCount && time >= frames[frameIndex]; frameIndex++)
 				firedEvents.add(events[frameIndex]);
+		}
+	}
+
+	static public class DrawOrderTimeline implements Timeline {
+		private final float[] frames; // time, ...
+		private final int[][] drawOrders;
+
+		public DrawOrderTimeline (int frameCount) {
+			frames = new float[frameCount];
+			drawOrders = new int[frameCount][];
+		}
+
+		public int getFrameCount () {
+			return frames.length;
+		}
+
+		public float[] getFrames () {
+			return frames;
+		}
+
+		public int[][] getDrawOrders () {
+			return drawOrders;
+		}
+
+		/** Sets the time of the specified keyframe.
+		 * @param drawOrder May be null to use bind pose draw order. */
+		public void setFrame (int frameIndex, float time, int[] drawOrder) {
+			frames[frameIndex] = time;
+			drawOrders[frameIndex] = drawOrder;
+		}
+
+		public void apply (Skeleton skeleton, float lastTime, float time, Array<Event> firedEvents, float alpha) {
+			float[] frames = this.frames;
+			if (time < frames[0]) return; // Time is before first frame.
+
+			int frameIndex;
+			if (time >= frames[frames.length - 1]) // Time is after last frame.
+				frameIndex = frames.length - 1;
+			else
+				frameIndex = binarySearch(frames, time, 1) - 1;
+
+			Array<Slot> drawOrder = skeleton.drawOrder;
+			Array<Slot> slots = skeleton.slots;
+			int[] drawOrderToSetupIndex = drawOrders[frameIndex];
+			if (drawOrderToSetupIndex == null)
+				System.arraycopy(slots.items, 0, drawOrder.items, 0, slots.size);
+			else {
+				for (int i = 0, n = drawOrderToSetupIndex.length; i < n; i++)
+					drawOrder.set(i, slots.get(drawOrderToSetupIndex[i]));
+			}
 		}
 	}
 }

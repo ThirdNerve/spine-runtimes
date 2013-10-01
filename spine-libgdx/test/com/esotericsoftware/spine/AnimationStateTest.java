@@ -1,15 +1,23 @@
-/*******************************************************************************
+/******************************************************************************
+ * Spine Runtime Software License - Version 1.0
+ * 
  * Copyright (c) 2013, Esoteric Software
  * All rights reserved.
  * 
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
+ * Redistribution and use in source and binary forms in whole or in part, with
+ * or without modification, are permitted provided that the following conditions
+ * are met:
  * 
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
+ * 1. A Spine Single User License or Spine Professional License must be
+ *    purchased from Esoteric Software and the license must remain valid:
+ *    http://esotericsoftware.com/
+ * 2. Redistributions of source code must retain this license, which is the
+ *    above copyright notice, this declaration of conditions and the following
+ *    disclaimer.
+ * 3. Redistributions in binary form must reproduce this license, which is the
+ *    above copyright notice, this declaration of conditions and the following
+ *    disclaimer, in the documentation and/or other materials provided with the
+ *    distribution.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -21,7 +29,7 @@
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- ******************************************************************************/
+ *****************************************************************************/
 
 package com.esotericsoftware.spine;
 
@@ -61,23 +69,23 @@ public class AnimationStateTest extends ApplicationAdapter {
 
 		state = new AnimationState(stateData);
 		state.addListener(new AnimationStateListener() {
-			public void event (Event event) {
-				System.out.println("Event: " + event.getData().getName());
+			public void event (int trackIndex, Event event) {
+				System.out.println(trackIndex + " event: " + state.getCurrent(trackIndex) + ", " + event.getData().getName());
 			}
 
-			public void complete (int loopCount) {
-				System.out.println("Complete: " + state.getAnimation() + ", " + loopCount);
+			public void complete (int trackIndex, int loopCount) {
+				System.out.println(trackIndex + " complete: " + state.getCurrent(trackIndex) + ", " + loopCount);
 			}
 
-			public void start () {
-				System.out.println("Start: " + state.getAnimation());
+			public void start (int trackIndex) {
+				System.out.println(trackIndex + " start: " + state.getCurrent(trackIndex));
 			}
 
-			public void end () {
-				System.out.println("End: " + state.getAnimation());
+			public void end (int trackIndex) {
+				System.out.println(trackIndex + " end: " + state.getCurrent(trackIndex));
 			}
 		});
-		state.setAnimation("walk", true);
+		state.setAnimation(0, "drawOrder", true);
 
 		skeleton = new Skeleton(skeletonData);
 		skeleton.setX(250);
@@ -91,25 +99,22 @@ public class AnimationStateTest extends ApplicationAdapter {
 			}
 
 			public boolean keyDown (int keycode) {
-				state.setAnimation("jump", false);
-				state.addAnimation("walk", true);
+// state.setAnimation(1, "jump", false);
+// state.addAnimation(1, (Animation)null, true, 0);
+
+				state.setAnimation(0, "jump", false);
+				state.addAnimation(0, "walk", true, 0);
 				return true;
 			}
 		});
 	}
 
 	public void render () {
-		state.update(Gdx.graphics.getDeltaTime() / 3);
+		state.update(Gdx.graphics.getDeltaTime());
 
 		Gdx.gl.glClear(GL10.GL_COLOR_BUFFER_BIT);
 
 		state.apply(skeleton);
-		if (state.getAnimation().getName().equals("walk")) {
-			// After one second, change the current animation. Mixing is done by AnimationState for you.
-// if (state.getTime() > 2) state.setAnimation("jump", false);
-// } else {
-// if (state.getTime() > 1) state.setAnimation("walk", true);
-		}
 		skeleton.updateWorldTransform();
 
 		batch.begin();

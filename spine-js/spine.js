@@ -1,3 +1,36 @@
+/******************************************************************************
+ * Spine Runtime Software License - Version 1.0
+ * 
+ * Copyright (c) 2013, Esoteric Software
+ * All rights reserved.
+ * 
+ * Redistribution and use in source and binary forms in whole or in part, with
+ * or without modification, are permitted provided that the following conditions
+ * are met:
+ * 
+ * 1. A Spine Single User License or Spine Professional License must be
+ *    purchased from Esoteric Software and the license must remain valid:
+ *    http://esotericsoftware.com/
+ * 2. Redistributions of source code must retain this license, which is the
+ *    above copyright notice, this declaration of conditions and the following
+ *    disclaimer.
+ * 3. Redistributions in binary form must reproduce this license, which is the
+ *    above copyright notice, this declaration of conditions and the following
+ *    disclaimer, in the documentation and/or other materials provided with the
+ *    distribution.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *****************************************************************************/
+
 var spine = {};
 
 spine.BoneData = function (name, parent) {
@@ -8,7 +41,9 @@ spine.BoneData.prototype = {
 	length: 0,
 	x: 0, y: 0,
 	rotation: 0,
-	scaleX: 1, scaleY: 1
+	scaleX: 1, scaleY: 1,
+	inheritScale: true,
+	inheritRotation: true
 };
 
 spine.SlotData = function (name, boneData) {
@@ -17,7 +52,8 @@ spine.SlotData = function (name, boneData) {
 };
 spine.SlotData.prototype = {
 	r: 1, g: 1, b: 1, a: 1,
-	attachmentName: null
+	attachmentName: null,
+	additiveBlending: false
 };
 
 spine.Bone = function (boneData, parent) {
@@ -39,9 +75,14 @@ spine.Bone.prototype = {
 		if (parent != null) {
 			this.worldX = this.x * parent.m00 + this.y * parent.m01 + parent.worldX;
 			this.worldY = this.x * parent.m10 + this.y * parent.m11 + parent.worldY;
-			this.worldScaleX = parent.worldScaleX * this.scaleX;
-			this.worldScaleY = parent.worldScaleY * this.scaleY;
-			this.worldRotation = parent.worldRotation + this.rotation;
+			if (this.data.inheritScale) {
+				this.worldScaleX = parent.worldScaleX * this.scaleX;
+				this.worldScaleY = parent.worldScaleY * this.scaleY;
+			} else {
+				this.worldScaleX = this.scaleX;
+				this.worldScaleY = this.scaleY;
+			}
+			this.worldRotation = this.data.inheritRotation ? parent.worldRotation + this.rotation : this.rotation;
 		} else {
 			this.worldX = this.x;
 			this.worldY = this.y;
@@ -653,7 +694,8 @@ spine.Skeleton.prototype = {
 };
 
 spine.AttachmentType = {
-	region: 0
+	region: 0,
+	boundingbox: 1
 };
 
 spine.RegionAttachment = function () {
@@ -887,6 +929,8 @@ spine.SkeletonJson.prototype = {
 			boneData.rotation = (boneMap["rotation"] || 0);
 			boneData.scaleX = boneMap["scaleX"] || 1;
 			boneData.scaleY = boneMap["scaleY"] || 1;
+			boneData.inheritScale = boneMap["inheritScale"] || true;
+			boneData.inheritRotation = boneMap["inheritRotation"] || true;
 			skeletonData.bones.push(boneData);
 		}
 
@@ -907,6 +951,7 @@ spine.SkeletonJson.prototype = {
 			}
 
 			slotData.attachmentName = slotMap["attachment"];
+			slotData.additiveBlending = slotMap["additive"];
 
 			skeletonData.slots.push(slotData);
 		}
@@ -1295,6 +1340,8 @@ spine.AtlasAttachmentLoader = function (atlas) {
 spine.AtlasAttachmentLoader.prototype = {
 	newAttachment: function (skin, type, name) {
 		switch (type) {
+		case spine.AttachmentType.boundingbox:
+			return null; // BOZO - Implement bounding boxes.
 		case spine.AttachmentType.region:
 			var region = this.atlas.findRegion(name);
 			if (!region) throw "Region not found in atlas: " + name + " (" + type + ")";

@@ -1,15 +1,23 @@
-/*******************************************************************************
+/******************************************************************************
+ * Spine Runtime Software License - Version 1.0
+ * 
  * Copyright (c) 2013, Esoteric Software
  * All rights reserved.
  * 
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
+ * Redistribution and use in source and binary forms in whole or in part, with
+ * or without modification, are permitted provided that the following conditions
+ * are met:
  * 
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
+ * 1. A Spine Single User License or Spine Professional License must be
+ *    purchased from Esoteric Software and the license must remain valid:
+ *    http://esotericsoftware.com/
+ * 2. Redistributions of source code must retain this license, which is the
+ *    above copyright notice, this declaration of conditions and the following
+ *    disclaimer.
+ * 3. Redistributions in binary form must reproduce this license, which is the
+ *    above copyright notice, this declaration of conditions and the following
+ *    disclaimer, in the documentation and/or other materials provided with the
+ *    distribution.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -21,43 +29,49 @@
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- ******************************************************************************/
+ *****************************************************************************/
 
 using System;
 
 namespace Spine {
 	public class Slot {
-		public SlotData Data { get; private set; }
-		public Bone Bone { get; private set; }
-		public Skeleton Skeleton { get; private set; }
-		public float R { get; set; }
-		public float G { get; set; }
-		public float B { get; set; }
-		public float A { get; set; }
-		public float TintR { get; set; }
-		public float TintG { get; set; }
-		public float TintB { get; set; }
-		public float TintA { get; set; }
+		internal SlotData data;
+		internal Bone bone;
+		internal Skeleton skeleton;
+		internal float r, g, b, a;
+		internal float tintR, tintG, tintB, tintA;
+		internal float attachmentTime;
+		internal Attachment attachment;
 
-		/** May be null. */
-		private Attachment attachment;
+		public SlotData Data { get { return data; } }
+		public Bone Bone { get { return bone; } }
+		public Skeleton Skeleton { get { return skeleton; } }
+		public float R { get { return r; } set { r = value; } }
+		public float G { get { return g; } set { g = value; } }
+		public float B { get { return b; } set { b = value; } }
+		public float A { get { return a; } set { a = value; } }
+        public float TintR { get { return tintR; } set { tintR = value; } }
+        public float TintG { get { return tintG; } set { tintG = value; } }
+        public float TintB { get { return tintB; } set { tintB = value; } }
+        public float TintA { get { return tintA; } set { tintA = value; } }
+
+		/// <summary>May be null.</summary>
 		public Attachment Attachment {
 			get {
 				return attachment;
 			}
 			set {
 				attachment = value;
-				attachmentTime = Skeleton.Time;
+				attachmentTime = skeleton.time;
 			}
 		}
 
-		private float attachmentTime;
 		public float AttachmentTime {
 			get {
-				return Skeleton.Time - attachmentTime;
+				return skeleton.time - attachmentTime;
 			}
 			set {
-				attachmentTime = Skeleton.Time - value;
+				attachmentTime = skeleton.time - value;
 			}
 		}
 
@@ -65,30 +79,30 @@ namespace Spine {
 			if (data == null) throw new ArgumentNullException("data cannot be null.");
 			if (skeleton == null) throw new ArgumentNullException("skeleton cannot be null.");
 			if (bone == null) throw new ArgumentNullException("bone cannot be null.");
-			Data = data;
-			Skeleton = skeleton;
-			Bone = bone;
+			this.data = data;
+			this.skeleton = skeleton;
+			this.bone = bone;
 			SetToSetupPose();
 		}
 
 		internal void SetToSetupPose (int slotIndex) {
-			R = Data.R;
-			G = Data.G;
-			B = Data.B;
-			A = Data.A;
-			TintR = Data.TintR;
-			TintG = Data.TintG;
-			TintB = Data.TintB;
-			TintA = Data.TintA;
-			Attachment = Data.AttachmentName == null ? null : Skeleton.GetAttachment(slotIndex, Data.AttachmentName);
+			r = data.r;
+			g = data.g;
+			b = data.b;
+			a = data.a;
+			tintR = data.tintR;
+			tintG = data.tintG;
+			tintB = data.tintB;
+			tintA = data.tintA;
+			Attachment = data.attachmentName == null ? null : skeleton.GetAttachment(slotIndex, data.attachmentName);
 		}
 
 		public void SetToSetupPose () {
-			SetToSetupPose(Skeleton.Data.Slots.IndexOf(Data));
+			SetToSetupPose(skeleton.data.slots.IndexOf(data));
 		}
 
 		override public String ToString () {
-			return Data.Name;
+			return data.name;
 		}
 	}
 }

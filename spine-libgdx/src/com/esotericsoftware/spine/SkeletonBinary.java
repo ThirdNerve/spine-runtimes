@@ -1,15 +1,23 @@
-/*******************************************************************************
+/******************************************************************************
+ * Spine Runtime Software License - Version 1.0
+ * 
  * Copyright (c) 2013, Esoteric Software
  * All rights reserved.
  * 
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
+ * Redistribution and use in source and binary forms in whole or in part, with
+ * or without modification, are permitted provided that the following conditions
+ * are met:
  * 
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
+ * 1. A Spine Single User License or Spine Professional License must be
+ *    purchased from Esoteric Software and the license must remain valid:
+ *    http://esotericsoftware.com/
+ * 2. Redistributions of source code must retain this license, which is the
+ *    above copyright notice, this declaration of conditions and the following
+ *    disclaimer.
+ * 3. Redistributions in binary form must reproduce this license, which is the
+ *    above copyright notice, this declaration of conditions and the following
+ *    disclaimer, in the documentation and/or other materials provided with the
+ *    distribution.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -21,13 +29,14 @@
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- ******************************************************************************/
+ *****************************************************************************/
 
 package com.esotericsoftware.spine;
 
 import com.esotericsoftware.spine.Animation.AttachmentTimeline;
 import com.esotericsoftware.spine.Animation.ColorTimeline;
 import com.esotericsoftware.spine.Animation.CurveTimeline;
+import com.esotericsoftware.spine.Animation.DrawOrderTimeline;
 import com.esotericsoftware.spine.Animation.EventTimeline;
 import com.esotericsoftware.spine.Animation.RotateTimeline;
 import com.esotericsoftware.spine.Animation.ScaleTimeline;
@@ -37,6 +46,7 @@ import com.esotericsoftware.spine.attachments.AtlasAttachmentLoader;
 import com.esotericsoftware.spine.attachments.Attachment;
 import com.esotericsoftware.spine.attachments.AttachmentLoader;
 import com.esotericsoftware.spine.attachments.AttachmentType;
+import com.esotericsoftware.spine.attachments.BoundingBoxAttachment;
 import com.esotericsoftware.spine.attachments.RegionAttachment;
 import com.esotericsoftware.spine.attachments.RegionSequenceAttachment;
 import com.esotericsoftware.spine.attachments.RegionSequenceAttachment.Mode;
@@ -57,6 +67,7 @@ public class SkeletonBinary {
 	static public final int TIMELINE_ATTACHMENT = 3;
 	static public final int TIMELINE_COLOR = 4;
 	static public final int TIMELINE_EVENT = 5;
+	static public final int TIMELINE_DRAWORDER = 6;
 
 	static public final int CURVE_LINEAR = 0;
 	static public final int CURVE_STEPPED = 1;
@@ -96,11 +107,8 @@ public class SkeletonBinary {
 			for (int i = 0, n = input.readInt(true); i < n; i++) {
 				String name = input.readString();
 				BoneData parent = null;
-				String parentName = input.readString();
-				if (parentName != null) {
-					parent = skeletonData.findBone(parentName);
-					if (parent == null) throw new SerializationException("Parent bone not found: " + parentName);
-				}
+				int parentIndex = input.readInt(true) - 1;
+				if (parentIndex != -1) parent = skeletonData.bones.get(parentIndex);
 				BoneData boneData = new BoneData(name, parent);
 				boneData.x = input.readFloat() * scale;
 				boneData.y = input.readFloat() * scale;
@@ -116,9 +124,7 @@ public class SkeletonBinary {
 			// Slots.
 			for (int i = 0, n = input.readInt(true); i < n; i++) {
 				String slotName = input.readString();
-				String boneName = input.readString();
-				BoneData boneData = skeletonData.findBone(boneName);
-				if (boneData == null) throw new SerializationException("Bone not found: " + boneName);
+				BoneData boneData = skeletonData.bones.get(input.readInt(true));
 				SlotData slotData = new SlotData(slotName, boneData);
 				Color.rgba8888ToColor(slotData.getColor(), input.readInt());
 				slotData.attachmentName = input.readString();
@@ -171,8 +177,7 @@ public class SkeletonBinary {
 		Skin skin = new Skin(skinName);
 		for (int i = 0; i < slotCount; i++) {
 			int slotIndex = input.readInt(true);
-			int attachmentCount = input.readInt(true);
-			for (int ii = 0; ii < attachmentCount; ii++) {
+			for (int ii = 0, nn = input.readInt(true); ii < nn; ii++) {
 				String name = input.readString();
 				skin.addAttachment(slotIndex, name, readAttachment(input, skin, name));
 			}
@@ -191,9 +196,8 @@ public class SkeletonBinary {
 			RegionSequenceAttachment regionSequenceAttachment = (RegionSequenceAttachment)attachment;
 			regionSequenceAttachment.setFrameTime(1 / input.readFloat());
 			regionSequenceAttachment.setMode(Mode.values()[input.readInt(true)]);
-		}
 
-		if (attachment instanceof RegionAttachment) {
+		} else if (attachment instanceof RegionAttachment) {
 			RegionAttachment regionAttachment = (RegionAttachment)attachment;
 			regionAttachment.setX(input.readFloat() * scale);
 			regionAttachment.setY(input.readFloat() * scale);
@@ -203,6 +207,14 @@ public class SkeletonBinary {
 			regionAttachment.setWidth(input.readFloat() * scale);
 			regionAttachment.setHeight(input.readFloat() * scale);
 			regionAttachment.updateOffset();
+
+		} else if (attachment instanceof BoundingBoxAttachment) {
+			BoundingBoxAttachment box = (BoundingBoxAttachment)attachment;
+			int n = input.readInt(true);
+			float[] points = new float[n];
+			for (int i = 0; i < n; i++)
+				points[i] = input.readFloat();
+			box.setVertices(points);
 		}
 
 		return attachment;
@@ -213,11 +225,8 @@ public class SkeletonBinary {
 		float duration = 0;
 
 		try {
-			int boneCount = input.readInt(true);
-			for (int i = 0; i < boneCount; i++) {
-				String boneName = input.readString();
-				int boneIndex = skeletonData.findBoneIndex(boneName);
-				if (boneIndex == -1) throw new SerializationException("Bone not found: " + boneName);
+			for (int i = 0, n = input.readInt(true); i < n; i++) {
+				int boneIndex = input.readInt(true);
 				int itemCount = input.readInt(true);
 				for (int ii = 0; ii < itemCount; ii++) {
 					int timelineType = input.readByte();
@@ -253,16 +262,12 @@ public class SkeletonBinary {
 						timelines.add(timeline);
 						duration = Math.max(duration, timeline.getFrames()[keyCount * 3 - 3]);
 						break;
-					default:
-						throw new RuntimeException("Invalid timeline type for a bone: " + timelineType + " (" + boneName + ")");
 					}
 				}
 			}
 
-			int slotCount = input.readInt(true);
-			for (int i = 0; i < slotCount; i++) {
-				String slotName = input.readString();
-				int slotIndex = skeletonData.findSlotIndex(slotName);
+			for (int i = 0, n = input.readInt(true); i < n; i++) {
+				int slotIndex = input.readInt(true);
 				int itemCount = input.readInt(true);
 				for (int ii = 0; ii < itemCount; ii++) {
 					int timelineType = input.readByte();
@@ -289,8 +294,6 @@ public class SkeletonBinary {
 						timelines.add(timeline);
 						duration = Math.max(duration, timeline.getFrames()[keyCount - 1]);
 						break;
-					default:
-						throw new RuntimeException("Invalid timeline type for a slot: " + timelineType + " (" + slotName + ")");
 					}
 				}
 			}
@@ -300,15 +303,46 @@ public class SkeletonBinary {
 				EventTimeline timeline = new EventTimeline(eventCount);
 				for (int i = 0; i < eventCount; i++) {
 					float time = input.readFloat();
-					String eventName = input.readString();
-					EventData eventData = skeletonData.findEvent(eventName);
-					if (eventData == null) throw new SerializationException("Event not found: " + eventName);
+					EventData eventData = skeletonData.eventDatas.get(input.readInt(true));
 					Event event = new Event(eventData);
 					event.intValue = input.readInt(false);
 					event.floatValue = input.readFloat();
 					event.stringValue = input.readBoolean() ? input.readString() : eventData.stringValue;
 					timeline.setFrame(i, time, event);
 				}
+				timelines.add(timeline);
+				duration = Math.max(duration, timeline.getFrames()[eventCount - 1]);
+			}
+
+			int drawOrderCount = input.readInt(true);
+			if (drawOrderCount > 0) {
+				DrawOrderTimeline timeline = new DrawOrderTimeline(drawOrderCount);
+				int slotCount = skeletonData.slots.size;
+				for (int i = 0; i < drawOrderCount; i++) {
+					int offsetCount = input.readInt(true);
+					int[] drawOrder = new int[slotCount];
+					for (int ii = slotCount - 1; ii >= 0; ii--)
+						drawOrder[ii] = -1;
+					int[] unchanged = new int[slotCount - offsetCount];
+					int originalIndex = 0, unchangedIndex = 0;
+					for (int ii = 0; ii < offsetCount; ii++) {
+						int slotIndex = input.readInt(true);
+						// Collect unchanged items.
+						while (originalIndex != slotIndex)
+							unchanged[unchangedIndex++] = originalIndex++;
+						// Set changed items.
+						drawOrder[originalIndex + input.readInt(true)] = originalIndex++;
+					}
+					// Collect remaining unchanged items.
+					while (originalIndex < slotCount)
+						unchanged[unchangedIndex++] = originalIndex++;
+					// Fill in unchanged items.
+					for (int ii = slotCount - 1; ii >= 0; ii--)
+						if (drawOrder[ii] == -1) drawOrder[ii] = unchanged[--unchangedIndex];
+					timeline.setFrame(i, input.readFloat(), drawOrder);
+				}
+				timelines.add(timeline);
+				duration = Math.max(duration, timeline.getFrames()[drawOrderCount - 1]);
 			}
 		} catch (IOException ex) {
 			throw new SerializationException("Error reading skeleton file.", ex);

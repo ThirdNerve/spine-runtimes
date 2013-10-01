@@ -1,27 +1,4 @@
-/*******************************************************************************
- * Copyright (c) 2013, Esoteric Software
- * All rights reserved.
- * 
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- * 
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- ******************************************************************************/
+
 
 #import "ExampleLayer.h"
 
@@ -40,9 +17,12 @@
 	animationNode = [CCSkeletonAnimation skeletonWithFile:@"spineboy.json" atlasFile:@"spineboy.atlas" scale:1];
 	[animationNode setMixFrom:@"walk" to:@"jump" duration:0.2f];
 	[animationNode setMixFrom:@"jump" to:@"walk" duration:0.4f];
-	[animationNode setAnimation:@"walk" loop:NO];
-	[animationNode addAnimation:@"jump" loop:NO afterDelay:0];
-	[animationNode addAnimation:@"walk" loop:YES afterDelay:0];
+	[animationNode setDelegate:self];
+	[animationNode setAnimationForTrack:0 name:@"walk" loop:NO];
+	[animationNode addAnimationForTrack:0 name:@"jump" loop:NO afterDelay:0];
+	[animationNode addAnimationForTrack:0 name:@"walk" loop:YES afterDelay:0];
+	[animationNode addAnimationForTrack:0 name:@"jump" loop:YES afterDelay:4];
+	[animationNode setAnimationForTrack:1 name:@"drawOrder" loop:YES];
 	animationNode.timeScale = 0.3f;
 	animationNode.debugBones = true;
 
@@ -55,6 +35,23 @@
 #endif
 
 	return self;
+}
+
+- (void) animationDidStart:(CCSkeletonAnimation*)animation track:(int)trackIndex {
+	CCLOG(@"%d start: %s", trackIndex, AnimationState_getCurrent(animation.state, trackIndex)->animation->name);
+}
+
+- (void) animationWillEnd:(CCSkeletonAnimation*)animation track:(int)trackIndex {
+	CCLOG(@"%d end: %s", trackIndex, AnimationState_getCurrent(animation.state, trackIndex)->animation->name);
+}
+
+- (void) animationDidTriggerEvent:(CCSkeletonAnimation*)animation track:(int)trackIndex event:(Event*)event {
+	CCLOG(@"%d event: %s, %s: %d, %f, %s", trackIndex, AnimationState_getCurrent(animation.state, trackIndex)->animation->name,
+			event->data->name, event->intValue, event->floatValue, event->stringValue);
+}
+
+- (void) animationDidComplete:(CCSkeletonAnimation*)animation track:(int)trackIndex loopCount:(int)loopCount {
+	CCLOG(@"%d complete: %s, %d", trackIndex, AnimationState_getCurrent(animation.state, trackIndex)->animation->name, loopCount);
 }
 
 #if __CC_PLATFORM_MAC
