@@ -40,6 +40,7 @@ namespace Spine {
 		internal Skeleton skeleton;
 		internal float r, g, b, a;
 		internal float tintR, tintG, tintB, tintA;
+		internal float superTintR, superTintG, superTintB, superTintA;
 		internal float attachmentTime;
 		internal Attachment attachment;
 
@@ -54,6 +55,10 @@ namespace Spine {
         public float TintG { get { return tintG; } set { tintG = value; } }
         public float TintB { get { return tintB; } set { tintB = value; } }
         public float TintA { get { return tintA; } set { tintA = value; } }
+        public float SuperTintR { get { return superTintR; } set { superTintR = value; } }
+        public float SuperTintG { get { return superTintG; } set { superTintG = value; } }
+        public float SuperTintB { get { return superTintB; } set { superTintB = value; } }
+        public float SuperTintA { get { return superTintA; } set { superTintA = value; } }
 
 		/// <summary>May be null.</summary>
 		public Attachment Attachment {
@@ -94,6 +99,10 @@ namespace Spine {
 			tintG = data.tintG;
 			tintB = data.tintB;
 			tintA = data.tintA;
+		    superTintR = data.superTintR;
+		    superTintG = data.superTintG;
+		    superTintB = data.superTintB;
+		    superTintA = data.superTintA;
 			Attachment = data.attachmentName == null ? null : skeleton.GetAttachment(slotIndex, data.attachmentName);
 		}
 

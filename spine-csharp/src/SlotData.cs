@@ -35,14 +35,15 @@ using System;
 
 namespace Spine {
 	public class SlotData {
-		internal String name;
-		internal BoneData boneData;
-		internal float r = 1, g = 1, b = 1, a = 1;
-		internal float tintR = 1, tintG = 1, tintB = 1, tintA = 1;
-		internal String attachmentName;
-		internal bool additiveBlending;
+	    internal String name;
+	    internal BoneData boneData;
+	    internal float r = 1, g = 1, b = 1, a = 1;
+	    internal float tintR = 1, tintG = 1, tintB = 1, tintA = 1;
+	    internal float superTintR = 1, superTintG = 1, superTintB = 1, superTintA = 1;
+	    internal String attachmentName;
+	    internal bool additiveBlending;
 
-		public String Name { get { return name; } }
+	    public String Name { get { return name; } }
 		public BoneData BoneData { get { return boneData; } }
 		public float R { get { return r; } set { r = value; } }
 		public float G { get { return g; } set { g = value; } }
@@ -52,6 +53,10 @@ namespace Spine {
 		public float TintG { get { return tintG; } set { tintG = value; } }
 		public float TintB { get { return tintB; } set { tintB = value; } }
 		public float TintA { get { return tintA; } set { tintA = value; } }
+        public float SuperTintR { get { return superTintR; } set { superTintR = value; } }
+        public float SuperTintG { get { return superTintG; } set { superTintG = value; } }
+        public float SuperTintB { get { return superTintB; } set { superTintB = value; } }
+        public float SuperTintA { get { return superTintA; } set { superTintA = value; } }
 		/// <summary>May be null.</summary>
 		public String AttachmentName { get { return attachmentName; } set { attachmentName = value; } }
 		public bool AdditiveBlending { get { return additiveBlending; } set { additiveBlending = value; } }

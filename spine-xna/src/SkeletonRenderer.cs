@@ -103,9 +103,9 @@ namespace Spine {
 					Color color;
 					float a = skeletonA * slot.A;
 					if (premultipliedAlpha)
-						color = new Color(skeletonR * slot.R * slot.TintR * a * slot.TintA, skeletonG * slot.G * slot.TintG * a * slot.TintA, skeletonB * slot.B * slot.TintB * a * slot.TintA, a * slot.TintA);
+						color = new Color(skeletonR * slot.R * slot.TintR * slot.SuperTintR * a * slot.TintA * slot.SuperTintA, skeletonG * slot.G * slot.TintG * slot.SuperTintG * a * slot.TintA * slot.SuperTintA, skeletonB * slot.B * slot.TintB * slot.SuperTintB * a * slot.TintA * slot.SuperTintA, a * slot.TintA * slot.SuperTintA);
 					else
-						color = new Color(skeletonR * slot.R * slot.TintR, skeletonG * slot.G * slot.TintG, skeletonB * slot.B * slot.TintB, a * slot.TintA);
+						color = new Color(skeletonR * slot.R * slot.TintR * slot.SuperTintR, skeletonG * slot.G * slot.TintG * slot.SuperTintG, skeletonB * slot.B * slot.TintB * slot.SuperTintB, a * slot.TintA * slot.SuperTintA);
 					item.vertexTL.Color = color;
 					item.vertexBL.Color = color;
 					item.vertexBR.Color = color;
