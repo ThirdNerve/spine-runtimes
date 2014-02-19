@@ -1,34 +1,29 @@
 /******************************************************************************
- * Spine Runtime Software License - Version 1.0
+ * Spine Runtimes Software License
+ * Version 2
  * 
  * Copyright (c) 2013, Esoteric Software
  * All rights reserved.
  * 
- * Redistribution and use in source and binary forms in whole or in part, with
- * or without modification, are permitted provided that the following conditions
- * are met:
- * 
- * 1. A Spine Single User License or Spine Professional License must be
- *    purchased from Esoteric Software and the license must remain valid:
- *    http://esotericsoftware.com/
- * 2. Redistributions of source code must retain this license, which is the
- *    above copyright notice, this declaration of conditions and the following
- *    disclaimer.
- * 3. Redistributions in binary form must reproduce this license, which is the
- *    above copyright notice, this declaration of conditions and the following
- *    disclaimer, in the documentation and/or other materials provided with the
- *    distribution.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * You are granted a perpetual, non-exclusive, non-sublicensable and
+ * non-transferable license to install, execute and perform the Spine Runtimes
+ * Software (the "Software") solely for internal use. Without the written
+ * permission of Esoteric Software, you may not (a) modify, translate, adapt or
+ * otherwise create derivative works, improvements of the Software or develop
+ * new applications using the Software or (b) remove, delete, alter or obscure
+ * any trademarks or any copyright, trademark, patent or other intellectual
+ * property or proprietary rights notices on or in the Software, including
+ * any copy thereof. Redistributions in binary or source form must include
+ * this license and terms. THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL ESOTERIC SOFTARE BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
  * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
  * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
 using System;
@@ -45,10 +40,15 @@ namespace Spine {
 		public AnimationStateData Data { get { return data; } }
 		public float TimeScale { get { return timeScale; } set { timeScale = value; } }
 
-		public event EventHandler<StartEndArgs> Start;
-		public event EventHandler<StartEndArgs> End;
-		public event EventHandler<EventTriggeredArgs> Event;
-		public event EventHandler<CompleteArgs> Complete;
+		public delegate void StartEndDelegate(AnimationState state, int trackIndex);
+		public event StartEndDelegate Start;
+		public event StartEndDelegate End;
+
+		public delegate void EventDelegate(AnimationState state, int trackIndex, Event e);
+		public event EventDelegate Event;
+		
+		public delegate void CompleteDelegate(AnimationState state, int trackIndex, int loopCount);
+		public event CompleteDelegate Complete;
 
 		public AnimationState (AnimationStateData data) {
 			if (data == null) throw new ArgumentNullException("data cannot be null.");
@@ -57,7 +57,7 @@ namespace Spine {
 
 		public void Update (float delta) {
 			delta *= timeScale;
-			for (int i = 0, n = tracks.Count; i < n; i++) {
+			for (int i = 0; i < tracks.Count; i++) {
 				TrackEntry current = tracks[i];
 				if (current == null) continue;
 
@@ -75,7 +75,7 @@ namespace Spine {
 				if (current.loop ? (current.lastTime % endTime > time % endTime) : (current.lastTime < endTime && time >= endTime)) {
 					int count = (int)(time / endTime);
 					current.OnComplete(this, i, count);
-					if (Complete != null) Complete(this, new CompleteArgs(i, count));
+					if (Complete != null) Complete(this, i, count);
 				}
 
 				TrackEntry next = current.next;
@@ -91,7 +91,7 @@ namespace Spine {
 		public void Apply (Skeleton skeleton) {
 			List<Event> events = this.events;
 
-			for (int i = 0, n = tracks.Count; i < n; i++) {
+			for (int i = 0; i < tracks.Count; i++) {
 				TrackEntry current = tracks[i];
 				if (current == null) continue;
 
@@ -120,7 +120,7 @@ namespace Spine {
 				for (int ii = 0, nn = events.Count; ii < nn; ii++) {
 					Event e = events[ii];
 					current.OnEvent(this, i, e);
-					if (Event != null) Event(this, new EventTriggeredArgs(i, e));
+					if (Event != null) Event(this, i, e);
 				}
 
 				current.lastTime = current.time;
@@ -139,7 +139,7 @@ namespace Spine {
 			if (current == null) return;
 
 			current.OnEnd(this, trackIndex);
-			if (End != null) End(this, new StartEndArgs(trackIndex));
+			if (End != null) End(this, trackIndex);
 
 			tracks[trackIndex] = null;
 		}
@@ -154,22 +154,27 @@ namespace Spine {
 		private void SetCurrent (int index, TrackEntry entry) {
 			TrackEntry current = ExpandToIndex(index);
 			if (current != null) {
+				TrackEntry previous = current.previous;
 				current.previous = null;
 
 				current.OnEnd(this, index);
-				if (End != null) End(this, new StartEndArgs(index));
+				if (End != null) End(this, index);
 
 				entry.mixDuration = data.GetMix(current.animation, entry.animation);
 				if (entry.mixDuration > 0) {
 					entry.mixTime = 0;
-					entry.previous = current;
+					// If a mix is in progress, mix from the closest animation.
+					if (previous != null && current.mixTime / current.mixDuration < 0.5f)
+						entry.previous = previous;
+					else
+						entry.previous = current;
 				}
 			}
 
 			tracks[index] = entry;
 
 			entry.OnStart(this, index);
-			if (Start != null) Start(this, new StartEndArgs(index));
+			if (Start != null) Start(this, index);
 		}
 
 		public TrackEntry SetAnimation (int trackIndex, String animationName, bool loop) {
@@ -242,39 +247,11 @@ namespace Spine {
 		}
 	}
 
-	public class EventTriggeredArgs : EventArgs {
-		public int TrackIndex { get; private set; }
-		public Event Event { get; private set; }
-
-		public EventTriggeredArgs (int trackIndex, Event e) {
-			TrackIndex = trackIndex;
-			Event = e;
-		}
-	}
-
-	public class CompleteArgs : EventArgs {
-		public int TrackIndex { get; private set; }
-		public int LoopCount { get; private set; }
-
-		public CompleteArgs (int trackIndex, int loopCount) {
-			TrackIndex = trackIndex;
-			LoopCount = loopCount;
-		}
-	}
-
-	public class StartEndArgs : EventArgs {
-		public int TrackIndex { get; private set; }
-
-		public StartEndArgs (int trackIndex) {
-			TrackIndex = trackIndex;
-		}
-	}
-
 	public class TrackEntry {
 		internal TrackEntry next, previous;
 		internal Animation animation;
 		internal bool loop;
-		internal float delay, time, lastTime, endTime, timeScale = 1;
+		internal float delay, time, lastTime = -1, endTime, timeScale = 1;
 		internal float mixTime, mixDuration;
 
 		public Animation Animation { get { return animation; } }
@@ -284,26 +261,30 @@ namespace Spine {
 		public float EndTime { get { return endTime; } set { endTime = value; } }
 		public float TimeScale { get { return timeScale; } set { timeScale = value; } }
 		public bool Loop { get { return loop; } set { loop = value; } }
-
-		public event EventHandler<StartEndArgs> Start;
-		public event EventHandler<StartEndArgs> End;
-		public event EventHandler<EventTriggeredArgs> Event;
-		public event EventHandler<CompleteArgs> Complete;
+		
+		public event AnimationState.StartEndDelegate Start;
+		public event AnimationState.StartEndDelegate End;
+		public event AnimationState.EventDelegate Event;
+		public event AnimationState.CompleteDelegate Complete;
 
 		internal void OnStart (AnimationState state, int index) {
-			if (Start != null) Start(state, new StartEndArgs(index));
+			if (Start != null) Start(state, index);
 		}
 
 		internal void OnEnd (AnimationState state, int index) {
-			if (End != null) End(state, new StartEndArgs(index));
+			if (End != null) End(state, index);
 		}
 
 		internal void OnEvent (AnimationState state, int index, Event e) {
-			if (Event != null) Event(state, new EventTriggeredArgs(index, e));
+			if (Event != null) Event(state, index, e);
 		}
 
 		internal void OnComplete (AnimationState state, int index, int loopCount) {
-			if (Complete != null) Complete(state, new CompleteArgs(index, loopCount));
+			if (Complete != null) Complete(state, index, loopCount);
+		}
+
+		override public String ToString () {
+			return animation == null ? "<none>" : animation.name;
 		}
 	}
 }

@@ -1,35 +1,30 @@
-------------------------------------------------------------------------------
- -- Spine Runtime Software License - Version 1.0
- -- 
- -- Copyright (c) 2013, Esoteric Software
- -- All rights reserved.
- -- 
- -- Redistribution and use in source and binary forms in whole or in part, with
- -- or without modification, are permitted provided that the following conditions
- -- are met:
- -- 
- -- 1. A Spine Single User License or Spine Professional License must be
- --    purchased from Esoteric Software and the license must remain valid:
- --    http://esotericsoftware.com/
- -- 2. Redistributions of source code must retain this license, which is the
- --    above copyright notice, this declaration of conditions and the following
- --    disclaimer.
- -- 3. Redistributions in binary form must reproduce this license, which is the
- --    above copyright notice, this declaration of conditions and the following
- --    disclaimer, in the documentation and/or other materials provided with the
- --    distribution.
- -- 
- -- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- -- ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- -- WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- -- DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- -- ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- -- (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- -- LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- -- ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- -- (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- -- SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- ------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
+-- Spine Runtimes Software License
+-- Version 2
+-- 
+-- Copyright (c) 2013, Esoteric Software
+-- All rights reserved.
+-- 
+-- You are granted a perpetual, non-exclusive, non-sublicensable and
+-- non-transferable license to install, execute and perform the Spine Runtimes
+-- Software (the "Software") solely for internal use. Without the written
+-- permission of Esoteric Software, you may not (a) modify, translate, adapt or
+-- otherwise create derivative works, improvements of the Software or develop
+-- new applications using the Software or (b) remove, delete, alter or obscure
+-- any trademarks or any copyright, trademark, patent or other intellectual
+-- property or proprietary rights notices on or in the Software, including
+-- any copy thereof. Redistributions in binary or source form must include
+-- this license and terms. THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE
+-- "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+-- TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+-- PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL ESOTERIC SOFTARE BE LIABLE FOR ANY
+-- DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+-- (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+-- LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+-- ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+-- (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+-- THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-------------------------------------------------------------------------------
 
 local SkeletonData = require "spine-lua.SkeletonData"
 local BoneData = require "spine-lua.BoneData"
@@ -37,11 +32,9 @@ local SlotData = require "spine-lua.SlotData"
 local Skin = require "spine-lua.Skin"
 local AttachmentLoader = require "spine-lua.AttachmentLoader"
 local Animation = require "spine-lua.Animation"
-local TIMELINE_SCALE = "scale"
-local TIMELINE_ROTATE = "rotate"
-local TIMELINE_TRANSLATE = "translate"
-local TIMELINE_ATTACHMENT = "attachment"
-local TIMELINE_COLOR = "color"
+local EventData = require "spine-lua.EventData"
+local Event = require "spine-lua.Event"
+local AttachmentType = require "spine-lua.AttachmentType"
 
 local SkeletonJson = {}
 function SkeletonJson.new (attachmentLoader)
@@ -107,10 +100,10 @@ function SkeletonJson.new (attachmentLoader)
 				local color = slotMap["color"]
 				if color then
 					slotData:setColor(
-						tonumber(color:sub(1, 2), 16),
-						tonumber(color:sub(3, 4), 16),
-						tonumber(color:sub(5, 6), 16),
-						tonumber(color:sub(7, 8), 16)
+						tonumber(color:sub(1, 2), 16) / 255,
+						tonumber(color:sub(3, 4), 16) / 255,
+						tonumber(color:sub(5, 6), 16) / 255,
+						tonumber(color:sub(7, 8), 16) / 255
 					)
 				end
 
@@ -123,9 +116,8 @@ function SkeletonJson.new (attachmentLoader)
 		end
 
 		-- Skins.
-		local map = root["skins"]
-		if map then
-			for skinName,skinMap in pairs(map) do
+		if root["skins"] then
+			for skinName,skinMap in pairs(root["skins"]) do
 				local skin = Skin.new(skinName)
 				for slotName,slotMap in pairs(skinMap) do
 					local slotIndex = skeletonData.slotNameIndices[slotName]
@@ -144,10 +136,20 @@ function SkeletonJson.new (attachmentLoader)
 			end
 		end
 
+		-- Events.
+		if root["events"] then
+			for eventName,eventMap in pairs(root["events"]) do
+				local eventData = EventData.new(eventName)
+				eventData.intValue = eventMap["int"] or 0
+				eventData.floatValue = eventMap["float"] or 0
+				eventData.stringValue = eventMap["string"]
+				table.insert(skeletonData.events, eventData)
+			end
+		end
+
 		-- Animations.
-		map = root["animations"]
-		if map then
-			for animationName,animationMap in pairs(map) do
+		if root["animations"] then
+			for animationName,animationMap in pairs(root["animations"]) do
 				readAnimation(animationName, animationMap, skeletonData)
 			end
 		end
@@ -158,17 +160,25 @@ function SkeletonJson.new (attachmentLoader)
 	readAttachment = function (name, map, scale)
 		name = map["name"] or name
 		local attachment
-		local type = map["type"] or AttachmentLoader.ATTACHMENT_REGION
+		local type = AttachmentType[map["type"] or "region"]
 		attachment = attachmentLoader:newAttachment(type, name)
 		if not attachment then return nil end
 
-		attachment.x = (map["x"] or 0) * scale
-		attachment.y = (map["y"] or 0) * scale
-		attachment.scaleX = (map["scaleX"] or 1)
-		attachment.scaleY = (map["scaleY"] or 1)
-		attachment.rotation = (map["rotation"] or 0)
-		attachment.width = map["width"] * scale
-		attachment.height = map["height"] * scale
+		if type == AttachmentType.region then
+			attachment.x = (map["x"] or 0) * scale
+			attachment.y = (map["y"] or 0) * scale
+			attachment.scaleX = (map["scaleX"] or 1)
+			attachment.scaleY = (map["scaleY"] or 1)
+			attachment.rotation = (map["rotation"] or 0)
+			attachment.width = map["width"] * scale
+			attachment.height = map["height"] * scale
+		elseif type == AttachmentType.boundingbox then
+			local vertices = map["vertices"]
+			for i,point in ipairs(vertices) do
+				table.insert(attachment.vertices, vertices[i] * scale)
+			end
+		end
+
 		return attachment
 	end
 
@@ -183,24 +193,24 @@ function SkeletonJson.new (attachmentLoader)
 				if boneIndex == -1 then error("Bone not found: " .. boneName) end
 
 				for timelineName,values in pairs(timelineMap) do
-					if timelineName == TIMELINE_ROTATE then
+					if timelineName == "rotate" then
 						local timeline = Animation.RotateTimeline.new()
 						timeline.boneIndex = boneIndex
 
 						local keyframeIndex = 0
 						for i,valueMap in ipairs(values) do
 							local time = valueMap["time"]
-							timeline:setKeyframe(keyframeIndex, time, valueMap["angle"])
+							timeline:setFrame(keyframeIndex, time, valueMap["angle"])
 							readCurve(timeline, keyframeIndex, valueMap)
 							keyframeIndex = keyframeIndex + 1
 						end
 						table.insert(timelines, timeline)
 						duration = math.max(duration, timeline:getDuration())
 
-					elseif timelineName == TIMELINE_TRANSLATE or timelineName == TIMELINE_SCALE then
+					elseif timelineName == "translate" or timelineName == "scale" then
 						local timeline
 						local timelineScale = 1
-						if timelineName == TIMELINE_SCALE then
+						if timelineName == "scale" then
 							timeline = Animation.ScaleTimeline.new()
 						else
 							timeline = Animation.TranslateTimeline.new()
@@ -213,7 +223,7 @@ function SkeletonJson.new (attachmentLoader)
 							local time = valueMap["time"]
 							local x = (valueMap["x"] or 0) * timelineScale
 							local y = (valueMap["y"] or 0) * timelineScale
-							timeline:setKeyframe(keyframeIndex, time, x, y)
+							timeline:setFrame(keyframeIndex, time, x, y)
 							readCurve(timeline, keyframeIndex, valueMap)
 							keyframeIndex = keyframeIndex + 1
 						end
@@ -233,7 +243,7 @@ function SkeletonJson.new (attachmentLoader)
 				local slotIndex = skeletonData.slotNameIndices[slotName]
 
 				for timelineName,values in pairs(timelineMap) do
-					if timelineName == TIMELINE_COLOR then
+					if timelineName == "color" then
 						local timeline = Animation.ColorTimeline.new()
 						timeline.slotIndex = slotIndex
 
@@ -241,12 +251,12 @@ function SkeletonJson.new (attachmentLoader)
 						for i,valueMap in ipairs(values) do
 							local time = valueMap["time"]
 							local color = valueMap["color"]
-							timeline:setKeyframe(
+							timeline:setFrame(
 								keyframeIndex, time, 
-								tonumber(color:sub(1, 2), 16),
-								tonumber(color:sub(3, 4), 16),
-								tonumber(color:sub(5, 6), 16),
-								tonumber(color:sub(7, 8), 16)
+								tonumber(color:sub(1, 2), 16) / 255,
+								tonumber(color:sub(3, 4), 16) / 255,
+								tonumber(color:sub(5, 6), 16) / 255,
+								tonumber(color:sub(7, 8), 16) / 255
 							)
 							readCurve(timeline, keyframeIndex, valueMap)
 							keyframeIndex = keyframeIndex + 1
@@ -254,17 +264,17 @@ function SkeletonJson.new (attachmentLoader)
 						table.insert(timelines, timeline)
 						duration = math.max(duration, timeline:getDuration())
 
-					elseif timelineName == TIMELINE_ATTACHMENT then
+					elseif timelineName == "attachment" then
 						local timeline = Animation.AttachmentTimeline.new()
 						timeline.slotName = slotName
 
-						local keyframeIndex = 0
+						local frameIndex = 0
 						for i,valueMap in ipairs(values) do
 							local time = valueMap["time"]
 							local attachmentName = valueMap["name"]
 							if not attachmentName then attachmentName = nil end
-							timeline:setKeyframe(keyframeIndex, time, attachmentName)
-							keyframeIndex = keyframeIndex + 1
+							timeline:setFrame(frameIndex, time, attachmentName)
+							frameIndex = frameIndex + 1
 						end
 						table.insert(timelines, timeline)
 						duration = math.max(duration, timeline:getDuration())
@@ -276,16 +286,81 @@ function SkeletonJson.new (attachmentLoader)
 			end
 		end
 
+		local events = map["events"]
+		if events then
+			local timeline = Animation.EventTimeline.new(#events)
+			local frameIndex = 0
+			for i,eventMap in ipairs(events) do
+				local eventData = skeletonData:findEvent(eventMap["name"])
+				if not eventData then error("Event not found: " .. eventMap["name"]) end
+				local event = Event.new(eventData)
+				event.intValue = eventMap["int"] or eventData.intValue
+				event.floatValue = eventMap["float"] or eventData.floatValue
+				event.stringValue = eventMap["string"] or eventData.stringValue
+				timeline:setFrame(frameIndex, eventMap["time"], event)
+				frameIndex = frameIndex + 1
+			end
+			table.insert(timelines, timeline)
+			duration = math.max(duration, timeline:getDuration())
+		end
+
+		local drawOrderValues = map["draworder"]
+		if drawOrderValues then
+			local timeline = Animation.DrawOrderTimeline.new(#drawOrderValues)
+			local slotCount = #skeletonData.slots
+			local frameIndex = 0
+			for i,drawOrderMap in ipairs(drawOrderValues) do
+				local drawOrder = nil
+				local offsets = drawOrderMap["offsets"]
+				if offsets then
+					drawOrder = {}
+					local unchanged = {}
+					local originalIndex = 1
+					local unchangedIndex = 1
+					for ii,offsetMap in ipairs(offsets) do
+						local slotIndex = skeletonData:findSlotIndex(offsetMap["slot"])
+						if slotIndex == -1 then error("Slot not found: " .. offsetMap["slot"]) end
+						-- Collect unchanged items.
+						while originalIndex ~= slotIndex do
+							unchanged[unchangedIndex] = originalIndex
+							unchangedIndex = unchangedIndex + 1
+							originalIndex = originalIndex + 1
+						end
+						-- Set changed items.
+						drawOrder[originalIndex + offsetMap["offset"]] = originalIndex
+						originalIndex = originalIndex + 1
+					end
+					-- Collect remaining unchanged items.
+					while originalIndex <= slotCount do
+						unchanged[unchangedIndex] = originalIndex
+						unchangedIndex = unchangedIndex + 1
+						originalIndex = originalIndex + 1
+					end
+					-- Fill in unchanged items.
+					for ii = slotCount, 1, -1 do
+						if not drawOrder[ii] then
+							unchangedIndex = unchangedIndex - 1
+							drawOrder[ii] = unchanged[unchangedIndex]
+						end
+					end
+				end
+				timeline:setFrame(frameIndex, drawOrderMap["time"], drawOrder)
+				frameIndex = frameIndex + 1
+			end
+			table.insert(timelines, timeline)
+			duration = math.max(duration, timeline:getDuration())
+		end
+
 		table.insert(skeletonData.animations, Animation.new(name, timelines, duration))
 	end
 
-	readCurve = function (timeline, keyframeIndex, valueMap)
+	readCurve = function (timeline, frameIndex, valueMap)
 		local curve = valueMap["curve"]
 		if not curve then return end
 		if curve == "stepped" then
-			timeline:setStepped(keyframeIndex)
+			timeline:setStepped(frameIndex)
 		else
-			timeline:setCurve(keyframeIndex, curve[1], curve[2], curve[3], curve[4])
+			timeline:setCurve(frameIndex, curve[1], curve[2], curve[3], curve[4])
 		end
 	end
 

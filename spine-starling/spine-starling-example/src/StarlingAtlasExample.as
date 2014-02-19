@@ -1,8 +1,9 @@
 package {
 
-import spine.AnimationStateData;
+import spine.Event;
 import spine.SkeletonData;
 import spine.SkeletonJson;
+import spine.animation.AnimationStateData;
 import spine.starling.SkeletonAnimation;
 import spine.starling.StarlingAtlasAttachmentLoader;
 
@@ -14,11 +15,11 @@ import starling.events.TouchPhase;
 import starling.textures.Texture;
 import starling.textures.TextureAtlas;
 
-public class Game extends Sprite {
-	[Embed(source = "spineboy.xml", mimeType = "application/octet-stream")]
+public class StarlingAtlasExample extends Sprite {
+	[Embed(source = "spineboy-starling.xml", mimeType = "application/octet-stream")]
 	static public const SpineboyAtlasXml:Class;
 
-	[Embed(source = "spineboy.png")]
+	[Embed(source = "spineboy-starling.png")]
 	static public const SpineboyAtlasTexture:Class;
 
 	[Embed(source = "spineboy.json", mimeType = "application/octet-stream")]
@@ -26,7 +27,7 @@ public class Game extends Sprite {
 
 	private var skeleton:SkeletonAnimation;
 
-	public function Game () {
+	public function StarlingAtlasExample () {
 		var texture:Texture = Texture.fromBitmap(new SpineboyAtlasTexture());
 		var xml:XML = XML(new SpineboyAtlasXml());
 		var atlas:TextureAtlas = new TextureAtlas(texture, xml);
@@ -39,13 +40,27 @@ public class Game extends Sprite {
 		stateData.setMixByName("jump", "walk", 0.4);
 		stateData.setMixByName("jump", "jump", 0.2);
 
-		skeleton = new SkeletonAnimation(skeletonData);
-		skeleton.setAnimationStateData(stateData);
+		skeleton = new SkeletonAnimation(skeletonData, stateData);
 		skeleton.x = 320;
 		skeleton.y = 420;
-		skeleton.setAnimation("walk", true);
-		skeleton.addAnimation("jump", false, 3);
-		skeleton.addAnimation("walk", true);
+		
+		skeleton.state.onStart = function (trackIndex:int) : void {
+			trace(trackIndex + " start: " + skeleton.state.getCurrent(trackIndex));
+		};
+		skeleton.state.onEnd = function (trackIndex:int) : void {
+			trace(trackIndex + " end: " + skeleton.state.getCurrent(trackIndex));
+		};
+		skeleton.state.onComplete = function (trackIndex:int, count:int) : void {
+			trace(trackIndex + " complete: " + skeleton.state.getCurrent(trackIndex) + ", " + count);
+		};
+		skeleton.state.onEvent = function (trackIndex:int, event:Event) : void {
+			trace(trackIndex + " event: " + skeleton.state.getCurrent(trackIndex) + ", "
+				+ event.data.name + ": " + event.intValue + ", " + event.floatValue + ", " + event.stringValue);
+		};
+		
+		skeleton.state.setAnimationByName(0, "walk", true);
+		skeleton.state.addAnimationByName(0, "jump", false, 3);
+		skeleton.state.addAnimationByName(0, "walk", true, 0);
 
 		addChild(skeleton);
 		Starling.juggler.add(skeleton);
@@ -56,8 +71,8 @@ public class Game extends Sprite {
 	private function onClick (event:TouchEvent) : void {
 		var touch:Touch = event.getTouch(this);
 		if (touch && touch.phase == TouchPhase.BEGAN) {
-			skeleton.setAnimation("jump", false);
-			skeleton.addAnimation("walk", true);
+			skeleton.state.setAnimationByName(0, "jump", false);
+			skeleton.state.addAnimationByName(0, "walk", true, 0);
 		}
 	}
 }

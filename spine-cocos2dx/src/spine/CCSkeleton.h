@@ -1,34 +1,29 @@
 /******************************************************************************
- * Spine Runtime Software License - Version 1.0
+ * Spine Runtimes Software License
+ * Version 2
  * 
  * Copyright (c) 2013, Esoteric Software
  * All rights reserved.
  * 
- * Redistribution and use in source and binary forms in whole or in part, with
- * or without modification, are permitted provided that the following conditions
- * are met:
- * 
- * 1. A Spine Single User License or Spine Professional License must be
- *    purchased from Esoteric Software and the license must remain valid:
- *    http://esotericsoftware.com/
- * 2. Redistributions of source code must retain this license, which is the
- *    above copyright notice, this declaration of conditions and the following
- *    disclaimer.
- * 3. Redistributions in binary form must reproduce this license, which is the
- *    above copyright notice, this declaration of conditions and the following
- *    disclaimer, in the documentation and/or other materials provided with the
- *    distribution.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * You are granted a perpetual, non-exclusive, non-sublicensable and
+ * non-transferable license to install, execute and perform the Spine Runtimes
+ * Software (the "Software") solely for internal use. Without the written
+ * permission of Esoteric Software, you may not (a) modify, translate, adapt or
+ * otherwise create derivative works, improvements of the Software or develop
+ * new applications using the Software or (b) remove, delete, alter or obscure
+ * any trademarks or any copyright, trademark, patent or other intellectual
+ * property or proprietary rights notices on or in the Software, including
+ * any copy thereof. Redistributions in binary or source form must include
+ * this license and terms. THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL ESOTERIC SOFTARE BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
  * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
  * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
 #ifndef SPINE_CCSKELETON_H_
@@ -42,20 +37,20 @@ namespace spine {
 /** Draws a skeleton. */
 class CCSkeleton: public cocos2d::CCNodeRGBA, public cocos2d::CCBlendProtocol {
 public:
-	Skeleton* skeleton;
-	Bone* rootBone;
+	spSkeleton* skeleton;
+	spBone* rootBone;
 	float timeScale;
 	bool debugSlots;
 	bool debugBones;
 	bool premultipliedAlpha;
 
-	static CCSkeleton* createWithData (SkeletonData* skeletonData, bool ownsSkeletonData = false);
-	static CCSkeleton* createWithFile (const char* skeletonDataFile, Atlas* atlas, float scale = 1);
-	static CCSkeleton* createWithFile (const char* skeletonDataFile, const char* atlasFile, float scale = 1);
+	static CCSkeleton* createWithData (spSkeletonData* skeletonData, bool ownsSkeletonData = false);
+	static CCSkeleton* createWithFile (const char* skeletonDataFile, spAtlas* atlas, float scale = 0);
+	static CCSkeleton* createWithFile (const char* skeletonDataFile, const char* atlasFile, float scale = 0);
 
-	CCSkeleton (SkeletonData* skeletonData, bool ownsSkeletonData = false);
-	CCSkeleton (const char* skeletonDataFile, Atlas* atlas, float scale = 1);
-	CCSkeleton (const char* skeletonDataFile, const char* atlasFile, float scale = 1);
+	CCSkeleton (spSkeletonData* skeletonData, bool ownsSkeletonData = false);
+	CCSkeleton (const char* skeletonDataFile, spAtlas* atlas, float scale = 0);
+	CCSkeleton (const char* skeletonDataFile, const char* atlasFile, float scale = 0);
 
 	virtual ~CCSkeleton ();
 
@@ -71,9 +66,9 @@ public:
 	void setSlotsToSetupPose ();
 
 	/* Returns 0 if the bone was not found. */
-	Bone* findBone (const char* boneName) const;
+	spBone* findBone (const char* boneName) const;
 	/* Returns 0 if the slot was not found. */
-	Slot* findSlot (const char* slotName) const;
+	spSlot* findSlot (const char* slotName) const;
 	
 	/* Sets the skin used to look up attachments not found in the SkeletonData defaultSkin. Attachments from the new skin are
 	 * attached if the corresponding attachment from the old skin was attached. Returns false if the skin was not found.
@@ -81,7 +76,7 @@ public:
 	bool setSkin (const char* skinName);
 	
 	/* Returns 0 if the slot or attachment was not found. */
-	Attachment* getAttachment (const char* slotName, const char* attachmentName) const;
+	spAttachment* getAttachment (const char* slotName, const char* attachmentName) const;
 	/* Returns false if the slot or attachment was not found. */
 	bool setAttachment (const char* slotName, const char* attachmentName);
 
@@ -92,12 +87,12 @@ public:
 
 protected:
 	CCSkeleton ();
-	void setSkeletonData (SkeletonData* skeletonData, bool ownsSkeletonData);
-	cocos2d::CCTextureAtlas* getTextureAtlas (RegionAttachment* regionAttachment) const;
+	void setSkeletonData (spSkeletonData* skeletonData, bool ownsSkeletonData);
+	virtual cocos2d::CCTextureAtlas* getTextureAtlas (spRegionAttachment* regionAttachment) const;
 
 private:
 	bool ownsSkeletonData;
-	Atlas* atlas;
+	spAtlas* atlas;
 	void initialize ();
 };
 

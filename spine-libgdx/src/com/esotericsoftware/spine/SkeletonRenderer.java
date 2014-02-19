@@ -1,45 +1,42 @@
 /******************************************************************************
- * Spine Runtime Software License - Version 1.0
+ * Spine Runtimes Software License
+ * Version 2
  * 
  * Copyright (c) 2013, Esoteric Software
  * All rights reserved.
  * 
- * Redistribution and use in source and binary forms in whole or in part, with
- * or without modification, are permitted provided that the following conditions
- * are met:
- * 
- * 1. A Spine Single User License or Spine Professional License must be
- *    purchased from Esoteric Software and the license must remain valid:
- *    http://esotericsoftware.com/
- * 2. Redistributions of source code must retain this license, which is the
- *    above copyright notice, this declaration of conditions and the following
- *    disclaimer.
- * 3. Redistributions in binary form must reproduce this license, which is the
- *    above copyright notice, this declaration of conditions and the following
- *    disclaimer, in the documentation and/or other materials provided with the
- *    distribution.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * You are granted a perpetual, non-exclusive, non-sublicensable and
+ * non-transferable license to install, execute and perform the Spine Runtimes
+ * Software (the "Software") solely for internal use. Without the written
+ * permission of Esoteric Software, you may not (a) modify, translate, adapt or
+ * otherwise create derivative works, improvements of the Software or develop
+ * new applications using the Software or (b) remove, delete, alter or obscure
+ * any trademarks or any copyright, trademark, patent or other intellectual
+ * property or proprietary rights notices on or in the Software, including
+ * any copy thereof. Redistributions in binary or source form must include
+ * this license and terms. THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL ESOTERIC SOFTARE BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
  * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
  * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
 package com.esotericsoftware.spine;
 
 import com.esotericsoftware.spine.attachments.Attachment;
+import com.esotericsoftware.spine.attachments.MeshAttachment;
 import com.esotericsoftware.spine.attachments.RegionAttachment;
+import com.esotericsoftware.spine.attachments.SkeletonAttachment;
 
 import com.badlogic.gdx.graphics.GL11;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.graphics.g2d.PolygonSpriteBatch;
-import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.utils.Array;
 
 public class SkeletonRenderer {
@@ -67,22 +64,52 @@ public class SkeletonRenderer {
 				vertices = region.getWorldVertices();
 				triangles = quadTriangle;
 				texture = region.getRegion().getTexture();
-			} else
-				continue;
 
-			if (slot.data.getAdditiveBlending() != additive) {
-				additive = !additive;
-				if (additive)
-					batch.setBlendFunction(srcFunc, GL11.GL_ONE);
-				else
-					batch.setBlendFunction(srcFunc, GL11.GL_ONE_MINUS_SRC_ALPHA);
+				if (slot.data.getAdditiveBlending() != additive) {
+					additive = !additive;
+					if (additive)
+						batch.setBlendFunction(srcFunc, GL11.GL_ONE);
+					else
+						batch.setBlendFunction(srcFunc, GL11.GL_ONE_MINUS_SRC_ALPHA);
+				}
+
+				batch.draw(texture, vertices, 0, vertices.length, triangles, 0, triangles.length);
+
+			} else if (attachment instanceof MeshAttachment) {
+				MeshAttachment mesh = (MeshAttachment)attachment;
+				mesh.updateWorldVertices(slot, true);
+				vertices = mesh.getWorldVertices();
+				triangles = mesh.getTriangles();
+				texture = mesh.getRegion().getTexture();
+				batch.draw(texture, vertices, 0, vertices.length, triangles, 0, triangles.length);
+
+			} else if (attachment instanceof SkeletonAttachment) {
+				Skeleton attachmentSkeleton = ((SkeletonAttachment)attachment).getSkeleton();
+				if (attachmentSkeleton == null) continue;
+				Bone bone = slot.getBone();
+				Bone rootBone = attachmentSkeleton.getRootBone();
+				float oldScaleX = rootBone.getScaleX();
+				float oldScaleY = rootBone.getScaleY();
+				float oldRotation = rootBone.getRotation();
+				attachmentSkeleton.setX(bone.getWorldX());
+				attachmentSkeleton.setY(bone.getWorldY());
+				rootBone.setScaleX(1 + bone.getWorldScaleX() - oldScaleX);
+				rootBone.setScaleY(1 + bone.getWorldScaleY() - oldScaleY);
+				rootBone.setRotation(oldRotation + bone.getWorldRotation());
+				attachmentSkeleton.updateWorldTransform();
+
+				draw(batch, attachmentSkeleton);
+
+				attachmentSkeleton.setX(0);
+				attachmentSkeleton.setY(0);
+				rootBone.setScaleX(oldScaleX);
+				rootBone.setScaleY(oldScaleY);
+				rootBone.setRotation(oldRotation);
 			}
-
-			batch.draw(texture, vertices, 0, vertices.length, triangles, 0, triangles.length);
 		}
 	}
 
-	public void draw (SpriteBatch batch, Skeleton skeleton) {
+	public void draw (Batch batch, Skeleton skeleton) {
 		boolean premultipliedAlpha = this.premultipliedAlpha;
 		int srcFunc = premultipliedAlpha ? GL11.GL_ONE : GL11.GL_SRC_ALPHA;
 		batch.setBlendFunction(srcFunc, GL11.GL_ONE_MINUS_SRC_ALPHA);
@@ -105,6 +132,28 @@ public class SkeletonRenderer {
 						batch.setBlendFunction(srcFunc, GL11.GL_ONE_MINUS_SRC_ALPHA);
 				}
 				batch.draw(regionAttachment.getRegion().getTexture(), vertices, 0, 20);
+			} else if (attachment instanceof SkeletonAttachment) {
+				Skeleton attachmentSkeleton = ((SkeletonAttachment)attachment).getSkeleton();
+				if (attachmentSkeleton == null) continue;
+				Bone bone = slot.getBone();
+				Bone rootBone = attachmentSkeleton.getRootBone();
+				float oldScaleX = rootBone.getScaleX();
+				float oldScaleY = rootBone.getScaleY();
+				float oldRotation = rootBone.getRotation();
+				attachmentSkeleton.setX(bone.getWorldX());
+				attachmentSkeleton.setY(bone.getWorldY());
+				rootBone.setScaleX(1 + bone.getWorldScaleX() - oldScaleX);
+				rootBone.setScaleY(1 + bone.getWorldScaleY() - oldScaleY);
+				rootBone.setRotation(oldRotation + bone.getWorldRotation());
+				attachmentSkeleton.updateWorldTransform();
+
+				draw(batch, attachmentSkeleton);
+
+				attachmentSkeleton.setX(0);
+				attachmentSkeleton.setY(0);
+				rootBone.setScaleX(oldScaleX);
+				rootBone.setScaleY(oldScaleY);
+				rootBone.setRotation(oldRotation);
 			}
 		}
 	}

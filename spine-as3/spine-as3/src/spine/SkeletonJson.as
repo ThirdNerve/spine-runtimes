@@ -1,34 +1,29 @@
 /******************************************************************************
- * Spine Runtime Software License - Version 1.0
+ * Spine Runtimes Software License
+ * Version 2
  * 
  * Copyright (c) 2013, Esoteric Software
  * All rights reserved.
  * 
- * Redistribution and use in source and binary forms in whole or in part, with
- * or without modification, are permitted provided that the following conditions
- * are met:
- * 
- * 1. A Spine Single User License or Spine Professional License must be
- *    purchased from Esoteric Software and the license must remain valid:
- *    http://esotericsoftware.com/
- * 2. Redistributions of source code must retain this license, which is the
- *    above copyright notice, this declaration of conditions and the following
- *    disclaimer.
- * 3. Redistributions in binary form must reproduce this license, which is the
- *    above copyright notice, this declaration of conditions and the following
- *    disclaimer, in the documentation and/or other materials provided with the
- *    distribution.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * You are granted a perpetual, non-exclusive, non-sublicensable and
+ * non-transferable license to install, execute and perform the Spine Runtimes
+ * Software (the "Software") solely for internal use. Without the written
+ * permission of Esoteric Software, you may not (a) modify, translate, adapt or
+ * otherwise create derivative works, improvements of the Software or develop
+ * new applications using the Software or (b) remove, delete, alter or obscure
+ * any trademarks or any copyright, trademark, patent or other intellectual
+ * property or proprietary rights notices on or in the Software, including
+ * any copy thereof. Redistributions in binary or source form must include
+ * this license and terms. THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL ESOTERIC SOFTARE BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
  * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
  * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
 package spine {
@@ -38,6 +33,8 @@ import spine.animation.Animation;
 import spine.animation.AttachmentTimeline;
 import spine.animation.ColorTimeline;
 import spine.animation.CurveTimeline;
+import spine.animation.DrawOrderTimeline;
+import spine.animation.EventTimeline;
 import spine.animation.RotateTimeline;
 import spine.animation.ScaleTimeline;
 import spine.animation.Timeline;
@@ -45,6 +42,7 @@ import spine.animation.TranslateTimeline;
 import spine.attachments.Attachment;
 import spine.attachments.AttachmentLoader;
 import spine.attachments.AttachmentType;
+import spine.attachments.BoundingBoxAttachment;
 import spine.attachments.RegionAttachment;
 
 public class SkeletonJson {
@@ -142,6 +140,19 @@ public class SkeletonJson {
 				skeletonData.defaultSkin = skin;
 		}
 
+		// Events.
+		var events:Object = root["events"];
+		if (events) {
+			for (var eventName:String in events) {
+				var eventMap:Object = events[eventName];
+				var eventData:EventData = new EventData(eventName);
+				eventData.intValue = eventMap["int"] || 0;
+				eventData.floatValue = eventMap["float"] || 0;
+				eventData.stringValue = eventMap["string"] || null;
+				skeletonData.addEvent(eventData);
+			}
+		}
+
 		// Animations.
 		var animations:Object = root["animations"];
 		for (var animationName:String in animations)
@@ -165,7 +176,21 @@ public class SkeletonJson {
 			regionAttachment.rotation = map["rotation"] || 0;
 			regionAttachment.width = (map["width"] || 32) * scale;
 			regionAttachment.height = (map["height"] || 32) * scale;
+
+			var color:String = map["color"];
+			if (color) {
+				regionAttachment.r = toColor(color, 0);
+				regionAttachment.g = toColor(color, 1);
+				regionAttachment.b = toColor(color, 2);
+				regionAttachment.a = toColor(color, 3);
+			}
+
 			regionAttachment.updateOffset();
+		} else if (attachment is BoundingBoxAttachment) {
+			var box:BoundingBoxAttachment = attachment as BoundingBoxAttachment;
+			var vertices:Vector.<Number> = box.vertices;
+			for each (var point:Number in map["vertices"])
+				vertices[vertices.length] = point * scale;
 		}
 
 		return attachment;
@@ -194,7 +219,7 @@ public class SkeletonJson {
 						readCurve(timeline, frameIndex, valueMap);
 						frameIndex++;
 					}
-					timelines.push(timeline);
+					timelines[timelines.length] = timeline;
 					duration = Math.max(duration, timeline.frames[timeline.frameCount * 2 - 2]);
 
 				} else if (timelineName == TIMELINE_TRANSLATE || timelineName == TIMELINE_SCALE) {
@@ -216,7 +241,7 @@ public class SkeletonJson {
 						readCurve(timeline1, frameIndex1, valueMap1);
 						frameIndex1++;
 					}
-					timelines.push(timeline1);
+					timelines[timelines.length] = timeline1;
 					duration = Math.max(duration, timeline1.frames[timeline1.frameCount * 3 - 3]);
 
 				} else
@@ -246,7 +271,7 @@ public class SkeletonJson {
 						readCurve(timeline2, frameIndex2, valueMap2);
 						frameIndex2++;
 					}
-					timelines.push(timeline2);
+					timelines[timelines.length] = timeline2;
 					duration = Math.max(duration, timeline2.frames[timeline2.frameCount * 5 - 5]);
 
 				} else if (timelineName2 == TIMELINE_ATTACHMENT) {
@@ -257,12 +282,65 @@ public class SkeletonJson {
 					for each (var valueMap3:Object in values2) {
 						timeline3.setFrame(frameIndex3++, valueMap3["time"], valueMap3["name"]);
 					}
-					timelines.push(timeline3);
+					timelines[timelines.length] = timeline3;
 					duration = Math.max(duration, timeline3.frames[timeline3.frameCount - 1]);
 
 				} else
 					throw new Error("Invalid timeline type for a slot: " + timelineName2 + " (" + slotName + ")");
 			}
+		}
+
+		var eventsMap:Object = map["events"];
+		if (eventsMap) {
+			var timeline4:EventTimeline = new EventTimeline(eventsMap.length);
+			var frameIndex4:int = 0;
+			for each (var eventMap:Object in eventsMap) {
+				var eventData:EventData = skeletonData.findEvent(eventMap["name"]);
+				if (eventData == null) throw new Error("Event not found: " + eventMap["name"]);
+				var event:Event = new Event(eventData);
+				event.intValue = eventMap.hasOwnProperty("int") ? eventMap["int"] : eventData.intValue;
+				event.floatValue = eventMap.hasOwnProperty("float") ? eventMap["float"] : eventData.floatValue;
+				event.stringValue = eventMap.hasOwnProperty("string") ? eventMap["string"] : eventData.stringValue;
+				timeline4.setFrame(frameIndex4++, eventMap["time"], event);
+			}
+			timelines[timelines.length] = timeline4;
+			duration = Math.max(duration, timeline4.frames[timeline4.frameCount - 1]);
+		}
+
+		var drawOrderValues:Object = map["draworder"];
+		if (drawOrderValues) {
+			var timeline5:DrawOrderTimeline = new DrawOrderTimeline(drawOrderValues.length);
+			var slotCount:int = skeletonData.slots.length;
+			var frameIndex5:int = 0;
+			for each (var drawOrderMap:Object in drawOrderValues) {
+				var drawOrder:Vector.<int> = null;
+				if (drawOrderMap["offsets"]) {
+					drawOrder = new Vector.<int>(slotCount);
+					for (var i:int = slotCount - 1; i >= 0; i--)
+						drawOrder[i] = -1;
+					var offsets:Object = drawOrderMap["offsets"];
+					var unchanged:Vector.<int> = new Vector.<int>(slotCount - offsets.length);
+					var originalIndex:int = 0, unchangedIndex:int = 0;
+					for each (var offsetMap:Object in offsets) {
+						var slotIndex2:int = skeletonData.findSlotIndex(offsetMap["slot"]);
+						if (slotIndex2 == -1) throw new Error("Slot not found: " + offsetMap["slot"]);
+						// Collect unchanged items.
+						while (originalIndex != slotIndex2)
+							unchanged[unchangedIndex++] = originalIndex++;
+						// Set changed items.
+						drawOrder[originalIndex + offsetMap["offset"]] = originalIndex++;
+					}
+					// Collect remaining unchanged items.
+					while (originalIndex < slotCount)
+						unchanged[unchangedIndex++] = originalIndex++;
+					// Fill in unchanged items.
+					for (i = slotCount - 1; i >= 0; i--)
+						if (drawOrder[i] == -1) drawOrder[i] = unchanged[--unchangedIndex];
+				}
+				timeline5.setFrame(frameIndex5++, drawOrderMap["time"], drawOrder);
+			}
+			timelines[timelines.length] = timeline5;
+			duration = Math.max(duration, timeline5.frames[timeline5.frameCount - 1]);
 		}
 
 		skeletonData.addAnimation(new Animation(name, timelines, duration));

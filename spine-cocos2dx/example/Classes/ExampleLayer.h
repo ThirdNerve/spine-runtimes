@@ -6,7 +6,7 @@
 #include "cocos2d.h"
 #include <spine/spine-cocos2dx.h>
 
-class ExampleLayer: public cocos2d::CCLayer {
+class ExampleLayer: public cocos2d::CCLayerColor {
 public:
 	static cocos2d::CCScene* scene ();
 
@@ -17,7 +17,7 @@ public:
 private:
 	spine::CCSkeletonAnimation* skeletonNode;
 	
-	void animationStateEvent (spine::CCSkeletonAnimation* node, int trackIndex, EventType type, Event* event, int loopCount);
+	void animationStateEvent (spine::CCSkeletonAnimation* node, int trackIndex, spEventType type, spEvent* event, int loopCount);
 };
 
 #endif // _EXAMPLELAYER_H_

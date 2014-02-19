@@ -1,48 +1,51 @@
 /******************************************************************************
- * Spine Runtime Software License - Version 1.0
+ * Spine Runtimes Software License
+ * Version 2
  * 
  * Copyright (c) 2013, Esoteric Software
  * All rights reserved.
  * 
- * Redistribution and use in source and binary forms in whole or in part, with
- * or without modification, are permitted provided that the following conditions
- * are met:
- * 
- * 1. A Spine Single User License or Spine Professional License must be
- *    purchased from Esoteric Software and the license must remain valid:
- *    http://esotericsoftware.com/
- * 2. Redistributions of source code must retain this license, which is the
- *    above copyright notice, this declaration of conditions and the following
- *    disclaimer.
- * 3. Redistributions in binary form must reproduce this license, which is the
- *    above copyright notice, this declaration of conditions and the following
- *    disclaimer, in the documentation and/or other materials provided with the
- *    distribution.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * You are granted a perpetual, non-exclusive, non-sublicensable and
+ * non-transferable license to install, execute and perform the Spine Runtimes
+ * Software (the "Software") solely for internal use. Without the written
+ * permission of Esoteric Software, you may not (a) modify, translate, adapt or
+ * otherwise create derivative works, improvements of the Software or develop
+ * new applications using the Software or (b) remove, delete, alter or obscure
+ * any trademarks or any copyright, trademark, patent or other intellectual
+ * property or proprietary rights notices on or in the Software, including
+ * any copy thereof. Redistributions in binary or source form must include
+ * this license and terms. THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL ESOTERIC SOFTARE BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
  * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
  * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
 #include <spine/RegionAttachment.h>
 #include <spine/extension.h>
 
-RegionAttachment* RegionAttachment_create (const char* name) {
-	RegionAttachment* self = NEW(RegionAttachment);
+void _spRegionAttachment_dispose (spAttachment* attachment) {
+	spRegionAttachment* self = SUB_CAST(spRegionAttachment, attachment);
+
+	_spAttachment_deinit(attachment);
+
+	FREE(self);
+}
+
+spRegionAttachment* spRegionAttachment_create (const char* name) {
+	spRegionAttachment* self = NEW(spRegionAttachment);
 	self->scaleX = 1;
 	self->scaleY = 1;
-	_Attachment_init(SUPER(self), name, ATTACHMENT_REGION, _Attachment_deinit);
+	_spAttachment_init(SUPER(self), name, ATTACHMENT_REGION, _spRegionAttachment_dispose);
 	return self;
 }
 
-void RegionAttachment_setUVs (RegionAttachment* self, float u, float v, float u2, float v2, int/*bool*/rotate) {
+void spRegionAttachment_setUVs (spRegionAttachment* self, float u, float v, float u2, float v2, int/*bool*/rotate) {
 	if (rotate) {
 		self->uvs[VERTEX_X2] = u;
 		self->uvs[VERTEX_Y2] = v2;
@@ -64,7 +67,7 @@ void RegionAttachment_setUVs (RegionAttachment* self, float u, float v, float u2
 	}
 }
 
-void RegionAttachment_updateOffset (RegionAttachment* self) {
+void spRegionAttachment_updateOffset (spRegionAttachment* self) {
 	float regionScaleX = self->width / self->regionOriginalWidth * self->scaleX;
 	float regionScaleY = self->height / self->regionOriginalHeight * self->scaleY;
 	float localX = -self->width / 2 * self->scaleX + self->regionOffsetX * regionScaleX;
@@ -97,7 +100,7 @@ void RegionAttachment_updateOffset (RegionAttachment* self) {
 	self->offset[VERTEX_Y4] = localYCos + localX2Sin;
 }
 
-void RegionAttachment_computeWorldVertices (RegionAttachment* self, float x, float y, Bone* bone, float* vertices) {
+void spRegionAttachment_computeWorldVertices (spRegionAttachment* self, float x, float y, spBone* bone, float* vertices) {
 	float* offset = self->offset;
 	x += bone->worldX;
 	y += bone->worldY;

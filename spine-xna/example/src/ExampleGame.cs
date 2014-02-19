@@ -1,34 +1,29 @@
 /******************************************************************************
- * Spine Runtime Software License - Version 1.0
+ * Spine Runtimes Software License
+ * Version 2
  * 
  * Copyright (c) 2013, Esoteric Software
  * All rights reserved.
  * 
- * Redistribution and use in source and binary forms in whole or in part, with
- * or without modification, are permitted provided that the following conditions
- * are met:
- * 
- * 1. A Spine Single User License or Spine Professional License must be
- *    purchased from Esoteric Software and the license must remain valid:
- *    http://esotericsoftware.com/
- * 2. Redistributions of source code must retain this license, which is the
- *    above copyright notice, this declaration of conditions and the following
- *    disclaimer.
- * 3. Redistributions in binary form must reproduce this license, which is the
- *    above copyright notice, this declaration of conditions and the following
- *    disclaimer, in the documentation and/or other materials provided with the
- *    distribution.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * You are granted a perpetual, non-exclusive, non-sublicensable and
+ * non-transferable license to install, execute and perform the Spine Runtimes
+ * Software (the "Software") solely for internal use. Without the written
+ * permission of Esoteric Software, you may not (a) modify, translate, adapt or
+ * otherwise create derivative works, improvements of the Software or develop
+ * new applications using the Software or (b) remove, delete, alter or obscure
+ * any trademarks or any copyright, trademark, patent or other intellectual
+ * property or proprietary rights notices on or in the Software, including
+ * any copy thereof. Redistributions in binary or source form must include
+ * this license and terms. THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL ESOTERIC SOFTARE BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
  * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
  * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
 using System;
@@ -90,16 +85,16 @@ namespace Spine {
 
 			if (true) {
 				// Event handling for all animations.
-				state.Start += new EventHandler<StartEndArgs>(Start);
-				state.End += new EventHandler<StartEndArgs>(End);
-				state.Complete += new EventHandler<CompleteArgs>(Complete);
-				state.Event += new EventHandler<EventTriggeredArgs>(Event);
+				state.Start += Start;
+				state.End += End;
+				state.Complete += Complete;
+				state.Event += Event;
 
 				state.SetAnimation(0, "drawOrder", true);
 			} else {
 				state.SetAnimation(0, "walk", false);
 				TrackEntry entry = state.AddAnimation(0, "jump", false, 0);
-				entry.End += new EventHandler<StartEndArgs>(End); // Event handling for queued animations.
+				entry.End += End; // Event handling for queued animations.
 				state.AddAnimation(0, "walk", true, 0);
 			}
 
@@ -149,20 +144,20 @@ namespace Spine {
 			base.Draw(gameTime);
 		}
 
-		public void Start (object sender, StartEndArgs e) {
-			Console.WriteLine(e.TrackIndex + " " + state.GetCurrent(e.TrackIndex) + ": start");
+		public void Start (AnimationState state, int trackIndex) {
+			Console.WriteLine(trackIndex + " " + state.GetCurrent(trackIndex) + ": start");
 		}
 
-		public void End (object sender, StartEndArgs e) {
-			Console.WriteLine(e.TrackIndex + " " + state.GetCurrent(e.TrackIndex) + ": end");
+		public void End (AnimationState state, int trackIndex) {
+			Console.WriteLine(trackIndex + " " + state.GetCurrent(trackIndex) + ": end");
 		}
 
-		public void Complete (object sender, CompleteArgs e) {
-			Console.WriteLine(e.TrackIndex + " " + state.GetCurrent(e.TrackIndex) + ": complete " + e.LoopCount);
+		public void Complete (AnimationState state, int trackIndex, int loopCount) {
+			Console.WriteLine(trackIndex + " " + state.GetCurrent(trackIndex) + ": complete " + loopCount);
 		}
 
-		public void Event (object sender, EventTriggeredArgs e) {
-			Console.WriteLine(e.TrackIndex + " " + state.GetCurrent(e.TrackIndex) + ": event " + e.Event);
+		public void Event (AnimationState state, int trackIndex, Event e) {
+			Console.WriteLine(trackIndex + " " + state.GetCurrent(trackIndex) + ": event " + e);
 		}
 	}
 }

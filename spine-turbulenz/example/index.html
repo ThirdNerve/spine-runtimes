@@ -2,11 +2,11 @@
 <head>
 <meta charset="UTF-8">
 <title>spine-js</title>
-<script src="../spine.js"></script>
-<script src="turbulenzengine.js"></script>
-<script src="graphicsdevice.js"></script>
-<script src="draw2d.js"></script>
-<script src="SpriteBatch.js"></script>
+<script src="../spine-js/spine.js"></script>
+<script src="../turbulenz/turbulenzengine.js"></script>
+<script src="../turbulenz/graphicsdevice.js"></script>
+<script src="../turbulenz/draw2d.js"></script>
+<script src="../SpriteBatch.js"></script>
 <style>body, input { font-family: tahoma; font-size: 11pt }</style>
 </head>
 <body>
@@ -30,17 +30,17 @@ load("spineboy");
 var skeletonName;
 function load (name) {
 	skeletonName = name;
-	TurbulenzEngine.request("../data/" + skeletonName + ".atlas", loadAtlas);
+	TurbulenzEngine.request("data/" + skeletonName + ".atlas", loadAtlas);
 }
 
 var atlas;
 function loadAtlas (atlasText) {
 	var textureCount = 0;
 	atlas = new spine.Atlas(atlasText, {
-		load: function (page, path) {
+		load: function (page, path, atlas) {
 			textureCount++;
 			graphicsDevice.createTexture({
-				src: "../data/" + path,
+				src: "data/" + path,
 				mipmaps: true,
 				onload: function (texture) {
 					page.rendererObject = texture;
@@ -57,7 +57,7 @@ function loadAtlas (atlasText) {
 	});
 	function waitForTextures () {
 		if (!textureCount)
-			TurbulenzEngine.request("../data/" + skeletonName + ".json", loadSkeletonData);
+			TurbulenzEngine.request("data/" + skeletonName + ".json", loadSkeletonData);
 		else
 			setTimeout(waitForTextures, 100);
 	}
@@ -75,8 +75,8 @@ function start () {
 	spine.Bone.yDown = true;
 
 	var skeleton = new spine.Skeleton(skeletonData);
-	skeleton.getRootBone().x = 320;
-	skeleton.getRootBone().y = 440;
+	skeleton.x = 320;
+	skeleton.y = 440;
 	skeleton.updateWorldTransform();
 
 	var stateData = new spine.AnimationStateData(skeletonData);	
@@ -85,21 +85,25 @@ function start () {
 	if (skeletonName == "spineboy") {
 		stateData.setMixByName("walk", "jump", 0.2);
 		stateData.setMixByName("jump", "walk", 0.4);
-		state.setAnimationByName("walk", true);
+		state.setAnimationByName(0, "drawOrder", true);
 
 		canvas.onmousedown = function () {
-			state.setAnimationByName("jump", false);
-			state.addAnimationByName("walk", true);
+			state.setAnimationByName(0, "jump", false);
+			state.addAnimationByName(0, "walk", true, 0);
 		}
 	} else {
 		skeleton.setSkinByName("goblingirl");
 		skeleton.setSlotsToSetupPose();
-		state.setAnimationByName("walk", true);
+		state.setAnimationByName(0, "walk", true);
 
 		canvas.onmousedown = function () {
 			skeleton.setSkinByName(skeleton.skin.name == "goblin" ? "goblingirl" : "goblin");
 			skeleton.setSlotsToSetupPose();
 		}
+	}
+	
+	state.onEvent = function (trackIndex, event) {
+		// alert(trackIndex + " event: " + event.data.name)
 	}
 
 	var bgColor = [0.9, 0.9, 0.9, 1.0];

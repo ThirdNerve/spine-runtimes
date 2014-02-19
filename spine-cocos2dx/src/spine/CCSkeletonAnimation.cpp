@@ -1,34 +1,29 @@
 /******************************************************************************
- * Spine Runtime Software License - Version 1.0
+ * Spine Runtimes Software License
+ * Version 2
  * 
  * Copyright (c) 2013, Esoteric Software
  * All rights reserved.
  * 
- * Redistribution and use in source and binary forms in whole or in part, with
- * or without modification, are permitted provided that the following conditions
- * are met:
- * 
- * 1. A Spine Single User License or Spine Professional License must be
- *    purchased from Esoteric Software and the license must remain valid:
- *    http://esotericsoftware.com/
- * 2. Redistributions of source code must retain this license, which is the
- *    above copyright notice, this declaration of conditions and the following
- *    disclaimer.
- * 3. Redistributions in binary form must reproduce this license, which is the
- *    above copyright notice, this declaration of conditions and the following
- *    disclaimer, in the documentation and/or other materials provided with the
- *    distribution.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * You are granted a perpetual, non-exclusive, non-sublicensable and
+ * non-transferable license to install, execute and perform the Spine Runtimes
+ * Software (the "Software") solely for internal use. Without the written
+ * permission of Esoteric Software, you may not (a) modify, translate, adapt or
+ * otherwise create derivative works, improvements of the Software or develop
+ * new applications using the Software or (b) remove, delete, alter or obscure
+ * any trademarks or any copyright, trademark, patent or other intellectual
+ * property or proprietary rights notices on or in the Software, including
+ * any copy thereof. Redistributions in binary or source form must include
+ * this license and terms. THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL ESOTERIC SOFTARE BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
  * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
  * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
 #include <spine/CCSkeletonAnimation.h>
@@ -42,17 +37,17 @@ using std::vector;
 
 namespace spine {
 
-static void callback (AnimationState* state, int trackIndex, EventType type, Event* event, int loopCount) {
+static void callback (spAnimationState* state, int trackIndex, spEventType type, spEvent* event, int loopCount) {
 	((CCSkeletonAnimation*)state->context)->onAnimationStateEvent(trackIndex, type, event, loopCount);
 }
 
-CCSkeletonAnimation* CCSkeletonAnimation::createWithData (SkeletonData* skeletonData) {
+CCSkeletonAnimation* CCSkeletonAnimation::createWithData (spSkeletonData* skeletonData) {
 	CCSkeletonAnimation* node = new CCSkeletonAnimation(skeletonData);
 	node->autorelease();
 	return node;
 }
 
-CCSkeletonAnimation* CCSkeletonAnimation::createWithFile (const char* skeletonDataFile, Atlas* atlas, float scale) {
+CCSkeletonAnimation* CCSkeletonAnimation::createWithFile (const char* skeletonDataFile, spAtlas* atlas, float scale) {
 	CCSkeletonAnimation* node = new CCSkeletonAnimation(skeletonDataFile, atlas, scale);
 	node->autorelease();
 	return node;
@@ -68,17 +63,18 @@ void CCSkeletonAnimation::initialize () {
 	listenerInstance = 0;
 	listenerMethod = 0;
 
-	state = AnimationState_create(AnimationStateData_create(skeleton->data));
+	ownsAnimationStateData = true;
+	state = spAnimationState_create(spAnimationStateData_create(skeleton->data));
 	state->context = this;
 	state->listener = callback;
 }
 
-CCSkeletonAnimation::CCSkeletonAnimation (SkeletonData *skeletonData)
+CCSkeletonAnimation::CCSkeletonAnimation (spSkeletonData *skeletonData)
 		: CCSkeleton(skeletonData) {
 	initialize();
 }
 
-CCSkeletonAnimation::CCSkeletonAnimation (const char* skeletonDataFile, Atlas* atlas, float scale)
+CCSkeletonAnimation::CCSkeletonAnimation (const char* skeletonDataFile, spAtlas* atlas, float scale)
 		: CCSkeleton(skeletonDataFile, atlas, scale) {
 	initialize();
 }
@@ -89,33 +85,33 @@ CCSkeletonAnimation::CCSkeletonAnimation (const char* skeletonDataFile, const ch
 }
 
 CCSkeletonAnimation::~CCSkeletonAnimation () {
-	if (ownsAnimationStateData) AnimationStateData_dispose(state->data);
-	AnimationState_dispose(state);
+	if (ownsAnimationStateData) spAnimationStateData_dispose(state->data);
+	spAnimationState_dispose(state);
 }
 
 void CCSkeletonAnimation::update (float deltaTime) {
 	super::update(deltaTime);
 
 	deltaTime *= timeScale;
-	AnimationState_update(state, deltaTime);
-	AnimationState_apply(state, skeleton);
-	Skeleton_updateWorldTransform(skeleton);
+	spAnimationState_update(state, deltaTime);
+	spAnimationState_apply(state, skeleton);
+	spSkeleton_updateWorldTransform(skeleton);
 }
 
-void CCSkeletonAnimation::setAnimationStateData (AnimationStateData* stateData) {
+void CCSkeletonAnimation::setAnimationStateData (spAnimationStateData* stateData) {
 	CCAssert(stateData, "stateData cannot be null.");
 
-	if (ownsAnimationStateData) AnimationStateData_dispose(state->data);
-	AnimationState_dispose(state);
+	if (ownsAnimationStateData) spAnimationStateData_dispose(state->data);
+	spAnimationState_dispose(state);
 
-	ownsAnimationStateData = true;
-	state = AnimationState_create(stateData);
+	ownsAnimationStateData = false;
+	state = spAnimationState_create(stateData);
 	state->context = this;
 	state->listener = callback;
 }
 
 void CCSkeletonAnimation::setMix (const char* fromAnimation, const char* toAnimation, float duration) {
-	AnimationStateData_setMixByName(state->data, fromAnimation, toAnimation, duration);
+	spAnimationStateData_setMixByName(state->data, fromAnimation, toAnimation, duration);
 }
 
 void CCSkeletonAnimation::setAnimationListener (CCObject* instance, SEL_AnimationStateEvent method) {
@@ -123,27 +119,37 @@ void CCSkeletonAnimation::setAnimationListener (CCObject* instance, SEL_Animatio
 	listenerMethod = method;
 }
 
-TrackEntry* CCSkeletonAnimation::setAnimation (int trackIndex, const char* name, bool loop) {
-	return AnimationState_setAnimationByName(state, trackIndex, name, loop);
+spTrackEntry* CCSkeletonAnimation::setAnimation (int trackIndex, const char* name, bool loop) {
+	spAnimation* animation = spSkeletonData_findAnimation(skeleton->data, name);
+	if (!animation) {
+		CCLog("Spine: Animation not found: %s", name);
+		return 0;
+	}
+	return spAnimationState_setAnimation(state, trackIndex, animation, loop);
 }
 
-TrackEntry* CCSkeletonAnimation::addAnimation (int trackIndex, const char* name, bool loop, float delay) {
-	return AnimationState_addAnimationByName(state, trackIndex, name, loop, delay);
+spTrackEntry* CCSkeletonAnimation::addAnimation (int trackIndex, const char* name, bool loop, float delay) {
+	spAnimation* animation = spSkeletonData_findAnimation(skeleton->data, name);
+	if (!animation) {
+		CCLog("Spine: Animation not found: %s", name);
+		return 0;
+	}
+	return spAnimationState_addAnimation(state, trackIndex, animation, loop, delay);
 }
 
-TrackEntry* CCSkeletonAnimation::getCurrent (int trackIndex) { 
-	return AnimationState_getCurrent(state, trackIndex);
+spTrackEntry* CCSkeletonAnimation::getCurrent (int trackIndex) { 
+	return spAnimationState_getCurrent(state, trackIndex);
 }
 
 void CCSkeletonAnimation::clearTracks () {
-	AnimationState_clearTracks(state);
+	spAnimationState_clearTracks(state);
 }
 
 void CCSkeletonAnimation::clearTrack (int trackIndex) {
-	AnimationState_clearTrack(state, trackIndex);
+	spAnimationState_clearTrack(state, trackIndex);
 }
 
-void CCSkeletonAnimation::onAnimationStateEvent (int trackIndex, EventType type, Event* event, int loopCount) {
+void CCSkeletonAnimation::onAnimationStateEvent (int trackIndex, spEventType type, spEvent* event, int loopCount) {
 	if (listenerInstance) (listenerInstance->*listenerMethod)(this, trackIndex, type, event, loopCount);
 }
 

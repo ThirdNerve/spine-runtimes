@@ -16,7 +16,7 @@ CCScene* ExampleLayer::scene () {
 }
 
 bool ExampleLayer::init () {
-	if (!CCLayer::init()) return false;
+	if (!CCLayerColor::initWithColor(ccc4(128,128,128,255))) return false;
 	
 	skeletonNode = CCSkeletonAnimation::createWithFile("spineboy.json", "spineboy.atlas");
 	skeletonNode->setMix("walk", "jump", 0.2f);
@@ -27,10 +27,11 @@ bool ExampleLayer::init () {
 	skeletonNode->addAnimation(0, "jump", false);
 	skeletonNode->addAnimation(0, "walk", true);
 	skeletonNode->addAnimation(0, "jump", true, 4);
-	skeletonNode->addAnimation(1, "drawOrder", true);
+	// skeletonNode->addAnimation(1, "drawOrder", true);
 
 	// skeletonNode->timeScale = 0.3f;
 	skeletonNode->debugBones = true;
+	skeletonNode->update(0);
 
 	skeletonNode->runAction(CCRepeatForever::create(CCSequence::create(CCFadeOut::create(1),
 		CCFadeIn::create(1),
@@ -48,11 +49,11 @@ bool ExampleLayer::init () {
 
 void ExampleLayer::update (float deltaTime) {
 	// Test releasing memory.
-	// if (entry->time > 0.1) CCDirector::sharedDirector()->replaceScene(ExampleLayer::scene());
+	// CCDirector::sharedDirector()->replaceScene(ExampleLayer::scene());
 }
 
-void ExampleLayer::animationStateEvent (CCSkeletonAnimation* node, int trackIndex, EventType type, Event* event, int loopCount) {
-	TrackEntry* entry = AnimationState_getCurrent(node->state, trackIndex);
+void ExampleLayer::animationStateEvent (CCSkeletonAnimation* node, int trackIndex, spEventType type, spEvent* event, int loopCount) {
+	spTrackEntry* entry = spAnimationState_getCurrent(node->state, trackIndex);
 	const char* animationName = (entry && entry->animation) ? entry->animation->name : 0;
 
 	switch (type) {
