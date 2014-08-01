@@ -1,6 +1,6 @@
 /******************************************************************************
  * Spine Runtimes Software License
- * Version 2
+ * Version 2.1
  * 
  * Copyright (c) 2013, Esoteric Software
  * All rights reserved.
@@ -8,22 +8,24 @@
  * You are granted a perpetual, non-exclusive, non-sublicensable and
  * non-transferable license to install, execute and perform the Spine Runtimes
  * Software (the "Software") solely for internal use. Without the written
- * permission of Esoteric Software, you may not (a) modify, translate, adapt or
- * otherwise create derivative works, improvements of the Software or develop
- * new applications using the Software or (b) remove, delete, alter or obscure
- * any trademarks or any copyright, trademark, patent or other intellectual
- * property or proprietary rights notices on or in the Software, including
- * any copy thereof. Redistributions in binary or source form must include
- * this license and terms. THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL ESOTERIC SOFTARE BE LIABLE FOR ANY
- * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * permission of Esoteric Software (typically granted by licensing Spine), you
+ * may not (a) modify, translate, adapt or otherwise create derivative works,
+ * improvements of the Software or develop new applications using the Software
+ * or (b) remove, delete, alter or obscure any trademarks or any copyright,
+ * trademark, patent or other intellectual property or proprietary rights
+ * notices on or in the Software, including any copy thereof. Redistributions
+ * in binary or source form must include this license and terms.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE "AS IS" AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
+ * EVENT SHALL ESOTERIC SOFTARE BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
 package com.esotericsoftware.spine;
@@ -37,6 +39,8 @@ public class Skeleton {
 	final SkeletonData data;
 	final Array<Bone> bones;
 	final Array<Slot> slots;
+	final Array<IkConstraint> ikConstraints;
+	private final Array<Array<Bone>> updateBonesCache = new Array();
 	Array<Slot> drawOrder;
 	Skin skin;
 	final Color color;
@@ -63,7 +67,13 @@ public class Skeleton {
 			drawOrder.add(slot);
 		}
 
+		ikConstraints = new Array(data.ikConstraints.size);
+		for (IkConstraintData ikConstraintData : data.ikConstraints)
+			ikConstraints.add(new IkConstraint(ikConstraintData, this));
+
 		color = new Color(1, 1, 1, 1);
+
+		updateCache();
 	}
 
 	/** Copy constructor. */
@@ -80,26 +90,89 @@ public class Skeleton {
 		slots = new Array(skeleton.slots.size);
 		for (Slot slot : skeleton.slots) {
 			Bone bone = bones.get(skeleton.bones.indexOf(slot.bone, true));
-			Slot newSlot = new Slot(slot, this, bone);
-			slots.add(newSlot);
+			slots.add(new Slot(slot, this, bone));
 		}
 
 		drawOrder = new Array(slots.size);
 		for (Slot slot : skeleton.drawOrder)
 			drawOrder.add(slots.get(skeleton.slots.indexOf(slot, true)));
 
+		ikConstraints = new Array(skeleton.ikConstraints.size);
+		for (IkConstraint ikConstraint : skeleton.ikConstraints) {
+			Bone target = bones.get(skeleton.bones.indexOf(ikConstraint.target, true));
+			Array<Bone> ikBones = new Array(ikConstraint.bones.size);
+			for (Bone bone : ikConstraint.bones)
+				ikBones.add(bones.get(skeleton.bones.indexOf(bone, true)));
+			ikConstraints.add(new IkConstraint(ikConstraint, ikBones, target));
+		}
+
 		skin = skeleton.skin;
 		color = new Color(skeleton.color);
 		time = skeleton.time;
+		flipX = skeleton.flipX;
+		flipY = skeleton.flipY;
+
+		updateCache();
 	}
 
-	/** Updates the world transform for each bone. */
+	/** Caches information about bones and IK constraints. Must be called if bones or IK constraints are added or removed. */
+	public void updateCache () {
+		Array<Array<Bone>> updateBonesCache = this.updateBonesCache;
+		Array<IkConstraint> ikConstraints = this.ikConstraints;
+		int ikConstraintsCount = ikConstraints.size;
+
+		int arrayCount = ikConstraintsCount + 1;
+		updateBonesCache.truncate(arrayCount);
+		for (int i = 0, n = updateBonesCache.size; i < n; i++)
+			updateBonesCache.get(i).clear();
+		while (updateBonesCache.size < arrayCount)
+			updateBonesCache.add(new Array());
+
+		Array<Bone> nonIkBones = updateBonesCache.first();
+
+		outer:
+		for (int i = 0, n = bones.size; i < n; i++) {
+			Bone bone = bones.get(i);
+			Bone current = bone;
+			do {
+				for (int ii = 0; ii < ikConstraintsCount; ii++) {
+					IkConstraint ikConstraint = ikConstraints.get(ii);
+					Bone parent = ikConstraint.bones.first();
+					Bone child = ikConstraint.bones.peek();
+					while (true) {
+						if (current == child) {
+							updateBonesCache.get(ii).add(bone);
+							updateBonesCache.get(ii + 1).add(bone);
+							continue outer;
+						}
+						if (child == parent) break;
+						child = child.parent;
+					}
+				}
+				current = current.parent;
+			} while (current != null);
+			nonIkBones.add(bone);
+		}
+	}
+
+	/** Updates the world transform for each bone and applies IK constraints. */
 	public void updateWorldTransform () {
-		boolean flipX = this.flipX;
-		boolean flipY = this.flipY;
 		Array<Bone> bones = this.bones;
-		for (int i = 0, n = bones.size; i < n; i++)
-			bones.get(i).updateWorldTransform(flipX, flipY);
+		for (int i = 0, nn = bones.size; i < nn; i++) {
+			Bone bone = bones.get(i);
+			bone.rotationIK = bone.rotation;
+		}
+		Array<Array<Bone>> updateBonesCache = this.updateBonesCache;
+		Array<IkConstraint> ikConstraints = this.ikConstraints;
+		int i = 0, last = updateBonesCache.size - 1;
+		while (true) {
+			Array<Bone> updateBones = updateBonesCache.get(i);
+			for (int ii = 0, nn = updateBones.size; ii < nn; ii++)
+				updateBones.get(ii).updateWorldTransform();
+			if (i == last) break;
+			ikConstraints.get(i).apply();
+			i++;
+		}
 	}
 
 	/** Sets the bones and slots to their setup pose values. */
@@ -112,11 +185,18 @@ public class Skeleton {
 		Array<Bone> bones = this.bones;
 		for (int i = 0, n = bones.size; i < n; i++)
 			bones.get(i).setToSetupPose();
+
+		Array<IkConstraint> ikConstraints = this.ikConstraints;
+		for (int i = 0, n = ikConstraints.size; i < n; i++) {
+			IkConstraint ikConstraint = ikConstraints.get(i);
+			ikConstraint.bendDirection = ikConstraint.data.bendDirection;
+			ikConstraint.mix = ikConstraint.data.mix;
+		}
 	}
 
 	public void setSlotsToSetupPose () {
 		Array<Slot> slots = this.slots;
-		System.arraycopy(slots.items, 0, drawOrder.items, 0, slots.size);		
+		System.arraycopy(slots.items, 0, drawOrder.items, 0, slots.size);
 		for (int i = 0, n = slots.size; i < n; i++)
 			slots.get(i).setToSetupPose(i);
 	}
@@ -203,10 +283,25 @@ public class Skeleton {
 	}
 
 	/** Sets the skin used to look up attachments not found in the {@link SkeletonData#getDefaultSkin() default skin}. Attachments
-	 * from the new skin are attached if the corresponding attachment from the old skin was attached.
+	 * from the new skin are attached if the corresponding attachment from the old skin was attached. If there was no old skin,
+	 * each slot's setup mode attachment is attached from the new skin.
 	 * @param newSkin May be null. */
 	public void setSkin (Skin newSkin) {
-		if (skin != null && newSkin != null) newSkin.attachAll(this, skin);
+		if (newSkin != null) {
+			if (skin != null)
+				newSkin.attachAll(this, skin);
+			else {
+				Array<Slot> slots = this.slots;
+				for (int i = 0, n = slots.size; i < n; i++) {
+					Slot slot = slots.get(i);
+					String name = slot.data.attachmentName;
+					if (name != null) {
+						Attachment attachment = newSkin.getAttachment(i, name);
+						if (attachment != null) slot.setAttachment(attachment);
+					}
+				}
+			}
+		}
 		skin = newSkin;
 	}
 
@@ -246,6 +341,21 @@ public class Skeleton {
 		throw new IllegalArgumentException("Slot not found: " + slotName);
 	}
 
+	public Array<IkConstraint> getIkConstraints () {
+		return ikConstraints;
+	}
+
+	/** @return May be null. */
+	public IkConstraint findIkConstraint (String ikConstraintName) {
+		if (ikConstraintName == null) throw new IllegalArgumentException("ikConstraintName cannot be null.");
+		Array<IkConstraint> ikConstraints = this.ikConstraints;
+		for (int i = 0, n = ikConstraints.size; i < n; i++) {
+			IkConstraint ikConstraint = ikConstraints.get(i);
+			if (ikConstraint.data.name.equals(ikConstraintName)) return ikConstraint;
+		}
+		return null;
+	}
+
 	public Color getColor () {
 		return color;
 	}
@@ -255,7 +365,11 @@ public class Skeleton {
 	}
 
 	public void setFlipX (boolean flipX) {
+// if (this.flipX == flipX) return;
 		this.flipX = flipX;
+		Array<Bone> bones = this.bones;
+		for (int i = 0, n = bones.size; i < n; i++)
+			bones.get(i).flipX = flipX;
 	}
 
 	public boolean getFlipY () {
@@ -263,7 +377,20 @@ public class Skeleton {
 	}
 
 	public void setFlipY (boolean flipY) {
+		if (this.flipY == flipY) return;
 		this.flipY = flipY;
+		Array<Bone> bones = this.bones;
+		for (int i = 0, n = bones.size; i < n; i++)
+			bones.get(i).flipY = flipY;
+	}
+
+	public void setFlip (boolean flipX, boolean flipY) {
+		Array<Bone> bones = this.bones;
+		for (int i = 0, n = bones.size; i < n; i++) {
+			Bone bone = bones.get(i);
+			bone.flipX = flipX;
+			bone.flipY = flipY;
+		}
 	}
 
 	public float getX () {
@@ -279,6 +406,11 @@ public class Skeleton {
 	}
 
 	public void setY (float y) {
+		this.y = y;
+	}
+
+	public void setPosition (float x, float y) {
+		this.x = x;
 		this.y = y;
 	}
 

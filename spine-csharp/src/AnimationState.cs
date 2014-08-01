@@ -1,6 +1,6 @@
 /******************************************************************************
  * Spine Runtimes Software License
- * Version 2
+ * Version 2.1
  * 
  * Copyright (c) 2013, Esoteric Software
  * All rights reserved.
@@ -8,22 +8,24 @@
  * You are granted a perpetual, non-exclusive, non-sublicensable and
  * non-transferable license to install, execute and perform the Spine Runtimes
  * Software (the "Software") solely for internal use. Without the written
- * permission of Esoteric Software, you may not (a) modify, translate, adapt or
- * otherwise create derivative works, improvements of the Software or develop
- * new applications using the Software or (b) remove, delete, alter or obscure
- * any trademarks or any copyright, trademark, patent or other intellectual
- * property or proprietary rights notices on or in the Software, including
- * any copy thereof. Redistributions in binary or source form must include
- * this license and terms. THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL ESOTERIC SOFTARE BE LIABLE FOR ANY
- * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * permission of Esoteric Software (typically granted by licensing Spine), you
+ * may not (a) modify, translate, adapt or otherwise create derivative works,
+ * improvements of the Software or develop new applications using the Software
+ * or (b) remove, delete, alter or obscure any trademarks or any copyright,
+ * trademark, patent or other intellectual property or proprietary rights
+ * notices on or in the Software, including any copy thereof. Redistributions
+ * in binary or source form must include this license and terms.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE "AS IS" AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
+ * EVENT SHALL ESOTERIC SOFTARE BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
 using System;
@@ -80,7 +82,8 @@ namespace Spine {
 
 				TrackEntry next = current.next;
 				if (next != null) {
-					if (time - trackDelta >= next.delay) SetCurrent(i, next);
+					next.time = current.lastTime - next.delay;
+					if (next.time >= 0) SetCurrent(i, next);
 				} else {
 					// End non-looping animation when it reaches its end time and there is no next entry.
 					if (!current.loop && current.lastTime >= current.endTime) ClearTrack(i);
@@ -102,14 +105,17 @@ namespace Spine {
 				if (!loop && time > current.endTime) time = current.endTime;
 
 				TrackEntry previous = current.previous;
-				if (previous == null)
-					current.animation.Apply(skeleton, current.lastTime, time, loop, events);
-				else {
+				if (previous == null) {
+					if (current.mix == 1)
+						current.animation.Apply(skeleton, current.lastTime, time, loop, events);
+					else
+						current.animation.Mix(skeleton, current.lastTime, time, loop, events, current.mix);
+				} else {
 					float previousTime = previous.time;
 					if (!previous.loop && previousTime > previous.endTime) previousTime = previous.endTime;
 					previous.animation.Apply(skeleton, previousTime, previousTime, previous.loop, null);
 
-					float alpha = current.mixTime / current.mixDuration;
+					float alpha = current.mixTime / current.mixDuration * current.mix;
 					if (alpha >= 1) {
 						alpha = 1;
 						current.previous = null;
@@ -252,7 +258,7 @@ namespace Spine {
 		internal Animation animation;
 		internal bool loop;
 		internal float delay, time, lastTime = -1, endTime, timeScale = 1;
-		internal float mixTime, mixDuration;
+		internal float mixTime, mixDuration, mix = 1;
 
 		public Animation Animation { get { return animation; } }
 		public float Delay { get { return delay; } set { delay = value; } }
@@ -260,8 +266,9 @@ namespace Spine {
 		public float LastTime { get { return lastTime; } set { lastTime = value; } }
 		public float EndTime { get { return endTime; } set { endTime = value; } }
 		public float TimeScale { get { return timeScale; } set { timeScale = value; } }
+		public float Mix { get { return mix; } set { mix = value; } }
 		public bool Loop { get { return loop; } set { loop = value; } }
-		
+
 		public event AnimationState.StartEndDelegate Start;
 		public event AnimationState.StartEndDelegate End;
 		public event AnimationState.EventDelegate Event;

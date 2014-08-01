@@ -1,6 +1,6 @@
 /******************************************************************************
  * Spine Runtimes Software License
- * Version 2
+ * Version 2.1
  * 
  * Copyright (c) 2013, Esoteric Software
  * All rights reserved.
@@ -8,22 +8,24 @@
  * You are granted a perpetual, non-exclusive, non-sublicensable and
  * non-transferable license to install, execute and perform the Spine Runtimes
  * Software (the "Software") solely for internal use. Without the written
- * permission of Esoteric Software, you may not (a) modify, translate, adapt or
- * otherwise create derivative works, improvements of the Software or develop
- * new applications using the Software or (b) remove, delete, alter or obscure
- * any trademarks or any copyright, trademark, patent or other intellectual
- * property or proprietary rights notices on or in the Software, including
- * any copy thereof. Redistributions in binary or source form must include
- * this license and terms. THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL ESOTERIC SOFTARE BE LIABLE FOR ANY
- * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * permission of Esoteric Software (typically granted by licensing Spine), you
+ * may not (a) modify, translate, adapt or otherwise create derivative works,
+ * improvements of the Software or develop new applications using the Software
+ * or (b) remove, delete, alter or obscure any trademarks or any copyright,
+ * trademark, patent or other intellectual property or proprietary rights
+ * notices on or in the Software, including any copy thereof. Redistributions
+ * in binary or source form must include this license and terms.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE "AS IS" AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
+ * EVENT SHALL ESOTERIC SOFTARE BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
 package com.esotericsoftware.spine;
@@ -38,22 +40,11 @@ public class SkeletonData {
 	Skin defaultSkin;
 	final Array<EventData> events = new Array();
 	final Array<Animation> animations = new Array();
-
-	public void clear () {
-		bones.clear();
-		slots.clear();
-		skins.clear();
-		defaultSkin = null;
-		events.clear();
-		animations.clear();
-	}
+	final Array<IkConstraintData> ikConstraints = new Array();
+	float width, height;
+	String version, hash;
 
 	// --- Bones.
-
-	public void addBone (BoneData bone) {
-		if (bone == null) throw new IllegalArgumentException("bone cannot be null.");
-		bones.add(bone);
-	}
 
 	public Array<BoneData> getBones () {
 		return bones;
@@ -80,11 +71,6 @@ public class SkeletonData {
 	}
 
 	// --- Slots.
-
-	public void addSlot (SlotData slot) {
-		if (slot == null) throw new IllegalArgumentException("slot cannot be null.");
-		slots.add(slot);
-	}
 
 	public Array<SlotData> getSlots () {
 		return slots;
@@ -122,11 +108,6 @@ public class SkeletonData {
 		this.defaultSkin = defaultSkin;
 	}
 
-	public void addSkin (Skin skin) {
-		if (skin == null) throw new IllegalArgumentException("skin cannot be null.");
-		skins.add(skin);
-	}
-
 	/** @return May be null. */
 	public Skin findSkin (String skinName) {
 		if (skinName == null) throw new IllegalArgumentException("skinName cannot be null.");
@@ -142,11 +123,6 @@ public class SkeletonData {
 
 	// --- Events.
 
-	public void addEvent (EventData eventData) {
-		if (eventData == null) throw new IllegalArgumentException("eventData cannot be null.");
-		events.add(eventData);
-	}
-
 	/** @return May be null. */
 	public EventData findEvent (String eventDataName) {
 		if (eventDataName == null) throw new IllegalArgumentException("eventDataName cannot be null.");
@@ -160,11 +136,6 @@ public class SkeletonData {
 	}
 
 	// --- Animations.
-
-	public void addAnimation (Animation animation) {
-		if (animation == null) throw new IllegalArgumentException("animation cannot be null.");
-		animations.add(animation);
-	}
 
 	public Array<Animation> getAnimations () {
 		return animations;
@@ -181,6 +152,23 @@ public class SkeletonData {
 		return null;
 	}
 
+	// --- IK
+
+	public Array<IkConstraintData> getIkConstraints () {
+		return ikConstraints;
+	}
+
+	/** @return May be null. */
+	public IkConstraintData findIkConstraint (String ikConstraintName) {
+		if (ikConstraintName == null) throw new IllegalArgumentException("ikConstraintName cannot be null.");
+		Array<IkConstraintData> ikConstraints = this.ikConstraints;
+		for (int i = 0, n = ikConstraints.size; i < n; i++) {
+			IkConstraintData ikConstraint = ikConstraints.get(i);
+			if (ikConstraint.name.equals(ikConstraintName)) return ikConstraint;
+		}
+		return null;
+	}
+
 	// ---
 
 	/** @return May be null. */
@@ -191,6 +179,39 @@ public class SkeletonData {
 	/** @param name May be null. */
 	public void setName (String name) {
 		this.name = name;
+	}
+
+	public float getWidth () {
+		return width;
+	}
+
+	public void setWidth (float width) {
+		this.width = width;
+	}
+
+	public float getHeight () {
+		return height;
+	}
+
+	public void setHeight (float height) {
+		this.height = height;
+	}
+
+	/** Returns the Spine version used to export this data. */
+	public String getVersion () {
+		return version;
+	}
+
+	public void setVersion (String version) {
+		this.version = version;
+	}
+
+	public String getHash () {
+		return hash;
+	}
+
+	public void setHash (String hash) {
+		this.hash = hash;
 	}
 
 	public String toString () {

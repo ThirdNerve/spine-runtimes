@@ -1,6 +1,6 @@
 -------------------------------------------------------------------------------
 -- Spine Runtimes Software License
--- Version 2
+-- Version 2.1
 -- 
 -- Copyright (c) 2013, Esoteric Software
 -- All rights reserved.
@@ -8,22 +8,24 @@
 -- You are granted a perpetual, non-exclusive, non-sublicensable and
 -- non-transferable license to install, execute and perform the Spine Runtimes
 -- Software (the "Software") solely for internal use. Without the written
--- permission of Esoteric Software, you may not (a) modify, translate, adapt or
--- otherwise create derivative works, improvements of the Software or develop
--- new applications using the Software or (b) remove, delete, alter or obscure
--- any trademarks or any copyright, trademark, patent or other intellectual
--- property or proprietary rights notices on or in the Software, including
--- any copy thereof. Redistributions in binary or source form must include
--- this license and terms. THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE
--- "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
--- TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
--- PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL ESOTERIC SOFTARE BE LIABLE FOR ANY
--- DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
--- (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
--- LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
--- ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
--- (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
--- THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-- permission of Esoteric Software (typically granted by licensing Spine), you
+-- may not (a) modify, translate, adapt or otherwise create derivative works,
+-- improvements of the Software or develop new applications using the Software
+-- or (b) remove, delete, alter or obscure any trademarks or any copyright,
+-- trademark, patent or other intellectual property or proprietary rights
+-- notices on or in the Software, including any copy thereof. Redistributions
+-- in binary or source form must include this license and terms.
+-- 
+-- THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE "AS IS" AND ANY EXPRESS OR
+-- IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+-- MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
+-- EVENT SHALL ESOTERIC SOFTARE BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+-- SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+-- PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+-- OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+-- WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+-- OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+-- ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 -------------------------------------------------------------------------------
 
 local Bone = require "spine-lua.Bone"
@@ -41,7 +43,10 @@ function Skeleton.new (skeletonData)
 		slotsByName = {},
 		drawOrder = {},
 		r = 1, g = 1, b = 1, a = 1,
-		x = 0, y = 0
+		x = 0, y = 0,
+		skin = nil,
+		flipX = false, flipY = false,
+		time = 0
 	}
 
 	function self:updateWorldTransform ()
@@ -63,6 +68,7 @@ function Skeleton.new (skeletonData)
 
 	function self:setSlotsToSetupPose ()
 		for i,slot in ipairs(self.slots) do
+			self.drawOrder[i] = slot
 			slot:setToSetupPose()
 		end
 	end
@@ -88,7 +94,7 @@ function Skeleton.new (skeletonData)
 		local newSkin
 		if skinName then
 			newSkin = self.data:findSkin(skinName)
-			if not newSkin then error("Skin not found: " .. skinName, 2) end
+			if not newSkin then error("Skin not found = " .. skinName, 2) end
 			if self.skin then
 				-- Attach all attachments from the new skin if the corresponding attachment from the old skin is currently attached.
 				for k,v in pairs(self.skin.attachments) do
@@ -101,6 +107,15 @@ function Skeleton.new (skeletonData)
 						if newAttachment then slot:setAttachment(newAttachment) end
 					end
 				end
+			else
+				-- No previous skin, attach setup pose attachments.
+				for i,slot in ipairs(self.slots) do
+					local name = slot.data.attachmentName
+					if name then
+						local attachment = newSkin:getAttachment(i, name)
+						if attachment then slot:setAttachment(attachment) end
+					end
+				end
 			end
 		end
 		self.skin = newSkin
@@ -110,7 +125,7 @@ function Skeleton.new (skeletonData)
 		if not slotName then error("slotName cannot be nil.", 2) end
 		if not attachmentName then error("attachmentName cannot be nil.", 2) end
 		local slotIndex = skeletonData.slotNameIndices[slotName]
-		if slotIndex == -1 then error("Slot not found: " .. slotName, 2) end
+		if slotIndex == -1 then error("Slot not found = " .. slotName, 2) end
 		if self.skin then
 			local attachment = self.skin:getAttachment(slotIndex, attachmentName)
 			if attachment then return attachment end
@@ -133,11 +148,18 @@ function Skeleton.new (skeletonData)
 				return
 			end
 		end
-		error("Slot not found: " .. slotName, 2)
+		error("Slot not found = " .. slotName, 2)
 	end
 
 	function self:update (delta)
 		self.time = self.time + delta
+	end
+
+	function self:setColor (r, g, b, a)
+		self.r = r
+		self.g = g
+		self.b = b
+		self.a = a
 	end
 
 	for i,boneData in ipairs(skeletonData.bones) do

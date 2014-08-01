@@ -1,6 +1,6 @@
 -------------------------------------------------------------------------------
 -- Spine Runtimes Software License
--- Version 2
+-- Version 2.1
 -- 
 -- Copyright (c) 2013, Esoteric Software
 -- All rights reserved.
@@ -8,22 +8,24 @@
 -- You are granted a perpetual, non-exclusive, non-sublicensable and
 -- non-transferable license to install, execute and perform the Spine Runtimes
 -- Software (the "Software") solely for internal use. Without the written
--- permission of Esoteric Software, you may not (a) modify, translate, adapt or
--- otherwise create derivative works, improvements of the Software or develop
--- new applications using the Software or (b) remove, delete, alter or obscure
--- any trademarks or any copyright, trademark, patent or other intellectual
--- property or proprietary rights notices on or in the Software, including
--- any copy thereof. Redistributions in binary or source form must include
--- this license and terms. THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE
--- "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
--- TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
--- PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL ESOTERIC SOFTARE BE LIABLE FOR ANY
--- DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
--- (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
--- LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
--- ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
--- (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
--- THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-- permission of Esoteric Software (typically granted by licensing Spine), you
+-- may not (a) modify, translate, adapt or otherwise create derivative works,
+-- improvements of the Software or develop new applications using the Software
+-- or (b) remove, delete, alter or obscure any trademarks or any copyright,
+-- trademark, patent or other intellectual property or proprietary rights
+-- notices on or in the Software, including any copy thereof. Redistributions
+-- in binary or source form must include this license and terms.
+-- 
+-- THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE "AS IS" AND ANY EXPRESS OR
+-- IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+-- MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
+-- EVENT SHALL ESOTERIC SOFTARE BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+-- SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+-- PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+-- OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+-- WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+-- OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+-- ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 -------------------------------------------------------------------------------
 
 local Animation = {}
@@ -354,32 +356,30 @@ function Animation.ColorTimeline.new ()
 		local frames = self.frames
 		if time < frames[0] then return end -- Time is before first frame.
 
-		local slot = skeleton.slots[self.slotIndex]
-
+		local r, g, b, a
 		if time >= frames[#frames - 4] then -- Time is after last frame.
-			local r = frames[#frames - 3]
-			local g = frames[#frames - 2]
-			local b = frames[#frames - 1]
-			local a = frames[#frames]
-			slot:setColor(r, g, b, a)
-			return
+			r = frames[#frames - 3]
+			g = frames[#frames - 2]
+			b = frames[#frames - 1]
+			a = frames[#frames]
+		else
+			-- Interpolate between the last frame and the current frame.
+			local frameIndex = binarySearch(frames, time, 5)
+			local lastFrameR = frames[frameIndex - 4]
+			local lastFrameG = frames[frameIndex - 3]
+			local lastFrameB = frames[frameIndex - 2]
+			local lastFrameA = frames[frameIndex - 1]
+			local frameTime = frames[frameIndex]
+			local percent = 1 - (time - frameTime) / (frames[frameIndex + LAST_FRAME_TIME] - frameTime)
+			if percent < 0 then percent = 0 elseif percent > 255 then percent = 255 end
+			percent = self:getCurvePercent(frameIndex / 5 - 1, percent)
+
+			r = lastFrameR + (frames[frameIndex + FRAME_R] - lastFrameR) * percent
+			g = lastFrameG + (frames[frameIndex + FRAME_G] - lastFrameG) * percent
+			b = lastFrameB + (frames[frameIndex + FRAME_B] - lastFrameB) * percent
+			a = lastFrameA + (frames[frameIndex + FRAME_A] - lastFrameA) * percent
 		end
-
-		-- Interpolate between the last frame and the current frame.
-		local frameIndex = binarySearch(frames, time, 5)
-		local lastFrameR = frames[frameIndex - 4]
-		local lastFrameG = frames[frameIndex - 3]
-		local lastFrameB = frames[frameIndex - 2]
-		local lastFrameA = frames[frameIndex - 1]
-		local frameTime = frames[frameIndex]
-		local percent = 1 - (time - frameTime) / (frames[frameIndex + LAST_FRAME_TIME] - frameTime)
-		if percent < 0 then percent = 0 elseif percent > 255 then percent = 255 end
-		percent = self:getCurvePercent(frameIndex / 5 - 1, percent)
-
-		local r = lastFrameR + (frames[frameIndex + FRAME_R] - lastFrameR) * percent
-		local g = lastFrameG + (frames[frameIndex + FRAME_G] - lastFrameG) * percent
-		local b = lastFrameB + (frames[frameIndex + FRAME_B] - lastFrameB) * percent
-		local a = lastFrameA + (frames[frameIndex + FRAME_A] - lastFrameA) * percent
+		local slot = skeleton.slots[self.slotIndex]
 		if alpha < 1 then
 			slot:setColor(slot.r + (r - slot.r) * alpha, slot.g + (g - slot.g) * alpha, slot.b + (b - slot.b) * alpha, slot.a + (a - slot.a) * alpha)
 		else
