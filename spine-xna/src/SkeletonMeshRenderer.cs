@@ -71,13 +71,14 @@ namespace Spine {
 			Bone.yDown = true;
 		}
 
-		public void Begin () {
+		public void Begin (Matrix cameraMatrix) {
 			defaultBlendState = premultipliedAlpha ? BlendState.AlphaBlend : BlendState.NonPremultiplied;
 
 			device.RasterizerState = rasterizerState;
 			device.BlendState = defaultBlendState;
 
 			effect.Projection = Matrix.CreateOrthographicOffCenter(0, device.Viewport.Width, device.Viewport.Height, 0, 1, 0);
+            effect.View = Matrix.CreateLookAt(new Vector3(0.0f, 0.0f, 1.0f), Vector3.Zero, Vector3.Up) * cameraMatrix;
 		}
 
 		public void End () {
@@ -113,15 +114,15 @@ namespace Spine {
 					Color color;
 					float a = skeletonA * slot.A * regionAttachment.A;
 					if (premultipliedAlpha) {
-						color = new Color(
-								skeletonR * slot.R * regionAttachment.R * a,
-								skeletonG * slot.G * regionAttachment.G * a,
-								skeletonB * slot.B * regionAttachment.B * a, a);
+                        color = new Color(skeletonR * slot.R * regionAttachment.R * slot.TintR * slot.SuperTintR * a * slot.TintA * slot.SuperTintA,
+                                          skeletonG * slot.G * regionAttachment.G * slot.TintG * slot.SuperTintG * a * slot.TintA * slot.SuperTintA,
+                                          skeletonB * slot.B * regionAttachment.B * slot.TintB * slot.SuperTintB * a * slot.TintA * slot.SuperTintA,
+                                          a * regionAttachment.A * slot.TintA * slot.SuperTintA);
 					} else {
-						color = new Color(
-								skeletonR * slot.R * regionAttachment.R,
-								skeletonG * slot.G * regionAttachment.G,
-								skeletonB * slot.B * regionAttachment.B, a);
+                        color = new Color(skeletonR * slot.R * regionAttachment.R * slot.TintR * slot.SuperTintR,
+                                          skeletonG * slot.G * regionAttachment.G * slot.TintG * slot.SuperTintG,
+                                          skeletonB * slot.B * regionAttachment.B * slot.TintB * slot.SuperTintB,
+                                          a * slot.TintA * slot.SuperTintA);
 					}
 					itemVertices[TL].Color = color;
 					itemVertices[BL].Color = color;
