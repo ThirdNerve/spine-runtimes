@@ -30,6 +30,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Spine {
 	public class SkeletonBounds {
@@ -69,18 +70,23 @@ namespace Spine {
 
 				Polygon polygon = null;
 				int poolCount = polygonPool.Count;
-				if (poolCount > 0) {
-					polygon = polygonPool[poolCount - 1];
-					polygonPool.RemoveAt(poolCount - 1);
-				} else
-					polygon = new Polygon();
-				polygons.Add(polygon);
+			    if (poolCount > 0)
+			    {
+			        polygon = polygonPool[poolCount - 1];
+			        polygonPool.RemoveAt(poolCount - 1);
+			    }
+			    else
+			    {
+			        polygon = new Polygon();
+			        polygon.Count = boundingBox.Vertices.Length;
+			        polygon.Vertices = boundingBox.Vertices;
+			    }
+			    polygons.Add(polygon);
 
-				int count = boundingBox.Vertices.Length;
-				polygon.Count = count;
-				if (polygon.Vertices.Length < count) polygon.Vertices = new float[count];
-				boundingBox.ComputeWorldVertices(slot.bone, polygon.Vertices);
+				boundingBox.ComputeWorldVertices(slot.bone, polygon.Vertices.ToArray());
 			}
+
+            Polygons = polygons;
 
 			if (updateAabb) aabbCompute();
 		}
